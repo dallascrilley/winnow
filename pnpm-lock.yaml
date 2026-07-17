@@ -58,7 +58,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -80,7 +80,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
@@ -357,10 +357,10 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/dispatch':
         specifier: latest
-        version: 0.14.12(@agent-native/core@0.104.0(6a68be962561d1ea909128fd59621424))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
+        version: 0.14.12(@agent-native/core@0.105.0(6a68be962561d1ea909128fd59621424))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
@@ -457,7 +457,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
@@ -689,7 +689,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
@@ -912,10 +912,10 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.104.0(7e44056ab67a72172daa5db9de593699)
+        version: 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/scheduling':
         specifier: 0.1.25
-        version: 0.1.25(@agent-native/core@0.104.0(7e44056ab67a72172daa5db9de593699))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
+        version: 0.1.25(@agent-native/core@0.105.0(7e44056ab67a72172daa5db9de593699))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
@@ -1135,6 +1135,10 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(vite@8.1.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1))
 
   packages/shared:
+    dependencies:
+      h3:
+        specifier: 'catalog:'
+        version: 2.0.1-rc.25(crossws@0.4.10(srvx@0.11.22))
     devDependencies:
       typescript-7:
         specifier: 'catalog:'
@@ -1142,8 +1146,8 @@ importers:
 
 packages:
 
-  '@agent-native/core@0.104.0':
-    resolution: {integrity: sha512-LIM8Q3Ne9Oa5KA3kfkCQeByvrrFWANcqPMt3oiM+7OdfPQMUWMg9vDsWcnUE/fKQkDUT9s0FDklTWN8MT+vaGg==}
+  '@agent-native/core@0.105.0':
+    resolution: {integrity: sha512-6rmsgXm2VNlnPuLHpa81pKKxO+8bI+0xtVot+onSFSHrzax8eWLZSiwoTdYtS0p3lD7HOSLNirP1+/qMpGmKoQ==}
     engines: {node: '>=22.22.0'}
     hasBin: true
     peerDependencies:
@@ -1247,8 +1251,8 @@ packages:
       react-dom: '>=19.2.7'
       react-router: '>=8'
 
-  '@agent-native/recap-cli@0.4.2':
-    resolution: {integrity: sha512-NhR6NPG4It4ZeBluX0hGjjiYDbrxe+bbllv9qHUDl1ERv7nu6nAEdnGlzG1kS1a9zI3kazOPd83r4j5yJt92mA==}
+  '@agent-native/recap-cli@0.4.3':
+    resolution: {integrity: sha512-7Uo8YpkNs9I5dGrKJU6kczbu2+xhz6m7E5cpgroAr2ClkQafWXZQb1EzLjQjOuwIn5JhMG7kMigxW8wk1caYFA==}
     engines: {node: '>=22.22.0'}
     hasBin: true
 
@@ -7998,9 +8002,9 @@ packages:
 
 snapshots:
 
-  '@agent-native/core@0.104.0(7e44056ab67a72172daa5db9de593699)':
+  '@agent-native/core@0.105.0(7e44056ab67a72172daa5db9de593699)':
     dependencies:
-      '@agent-native/recap-cli': 0.4.2
+      '@agent-native/recap-cli': 0.4.3
       '@agent-native/toolkit': 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       '@amplitude/analytics-browser': 2.45.1
       '@anthropic-ai/sdk': 0.90.0(zod@4.4.3)
@@ -8218,9 +8222,9 @@ snapshots:
       - xml2js
       - zephyr-agent
 
-  '@agent-native/dispatch@0.14.12(@agent-native/core@0.104.0(6a68be962561d1ea909128fd59621424))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)':
+  '@agent-native/dispatch@0.14.12(@agent-native/core@0.105.0(6a68be962561d1ea909128fd59621424))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@agent-native/core': 0.104.0(7e44056ab67a72172daa5db9de593699)
+      '@agent-native/core': 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@libsql/client': 0.15.15
       '@radix-ui/react-accordion': 1.2.16(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-alert-dialog': 1.1.19(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -8278,14 +8282,14 @@ snapshots:
       - redux
       - utf-8-validate
 
-  '@agent-native/recap-cli@0.4.2':
+  '@agent-native/recap-cli@0.4.3':
     optionalDependencies:
       '@playwright/test': 1.61.1
       playwright: 1.61.1
 
-  '@agent-native/scheduling@0.1.25(@agent-native/core@0.104.0(7e44056ab67a72172daa5db9de593699))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)':
+  '@agent-native/scheduling@0.1.25(@agent-native/core@0.105.0(7e44056ab67a72172daa5db9de593699))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)':
     dependencies:
-      '@agent-native/core': 0.104.0(7e44056ab67a72172daa5db9de593699)
+      '@agent-native/core': 0.105.0(7e44056ab67a72172daa5db9de593699)
       '@agent-native/toolkit': 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       '@date-fns/tz': 1.5.0
       date-fns: 4.4.0
@@ -10676,7 +10680,7 @@ snapshots:
       - '@types/react'
       - immer
 
-  '@reduxjs/toolkit@2.12.0(react-redux@9.3.0(@types/react@19.2.17)(react@19.2.7))(react@19.2.7)':
+  '@reduxjs/toolkit@2.12.0(react-redux@9.3.0(@types/react@19.2.17)(react@19.2.7)(redux@5.0.1))(react@19.2.7)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@standard-schema/utils': 0.3.0
@@ -14115,7 +14119,7 @@ snapshots:
 
   recharts@3.9.2(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1):
     dependencies:
-      '@reduxjs/toolkit': 2.12.0(react-redux@9.3.0(@types/react@19.2.17)(react@19.2.7))(react@19.2.7)
+      '@reduxjs/toolkit': 2.12.0(react-redux@9.3.0(@types/react@19.2.17)(react@19.2.7)(redux@5.0.1))(react@19.2.7)
       clsx: 2.1.1
       decimal.js-light: 2.5.1
       es-toolkit: 1.49.0
