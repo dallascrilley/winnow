@@ -84,3 +84,17 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [bug] `.sql?raw` imports in db plugins break the action CLI: the runner imports `server/plugins/db.ts` by convention under tsx, which can't parse ?raw. Fixed by wrapping drizzle output as string constants in `server/db/migrations-sql.ts` (both apps); scheduler's plugin renamed to `db.ts` so CLI runs migrations too, with skip-if-set context init. raw.d.ts deleted.
 - [decision] LLM provider pivot: OpenAI key valid but account has insufficient_quota; Anthropic 401; both Gemini keys 403 (checked env, project files, 1Password — five credentials probed). Default provider is now **Ollama** (`qwen3:4b`, local, $0 ledger): `QUALIFY_LLM_PROVIDER=ollama` + `QUALIFY_LLM_MODEL` in app .env. `callOpenAI` remains — funding any OpenAI key flips the demo to hosted with one env var. Bonus story: the demo runs offline.
 - [note] dotenv does not override process env — a stale shell `OPENAI_API_KEY` shadows `.env`. Dev shells should unset stale keys (U8 README must document).
+
+## 2026-07-17 — U3: intake chain (forms → qualify → public status page)
+
+- [discovery] The framework event bus is a Node EventEmitter — strictly in-process. Cross-app "automations" via the bus can never work between workspace apps (separate processes). Plan fallback shipped instead.
+- [discovery] `invokeAgent` / the A2A agent client is SSRF-guarded and refuses ALL private/loopback/CGNAT addresses (no dev bypass) — workspace siblings cannot A2A in local dev. **The dev cross-app pattern (also needed by U5): signed A2A JWT (`signA2AToken` with shared `A2A_SECRET`) + direct fetch to the sibling's action HTTP surface, verified server-side by `actionRouteAuth.resolveCaller` in the agent-chat plugin (`apps/qualify/server/lib/a2a-auth.ts`).**
+- [fork] forms fork delta #1: `server/lib/lead-router.ts` — post-insert hook in `submitForm` signs a JWT and POSTs to qualify's `process-lead`; scoped to the `talk-to-sales` slug + seeded field ids.
+- [fork] forms fork delta #2: `{responseId}` expansion in the publisher redirectUrl (`public-form-ssr.ts`) — submitters land on their live status page.
+- [hand] `apps/qualify/actions/process-lead.ts` — atomic intake: creates/loads lead synchronously (idempotent), then enrich→score→propose as a detached continuation. Requires long-running host (U8 ECS, not serverless).
+- [hand] Chain steps factored into `server/lib/chain.ts`; the three single actions are thin wrappers now.
+- [bug] Anonymous action reads need BOTH `publicPaths` (auth guard) AND `requiresAuth: false` on the action — either alone 401s.
+- [hand] Public status page `apps/qualify/app/routes/status.$responseId.tsx` — impersonal SSR shell + 2.5s client poll of `get-lead-status` (capability-keyed by response nanoid, sanitized projection).
+- [cmd] `putSetting('agent-engine', {engine:'ai-sdk:ollama', config:{model:'qwen3:4b'}})` via one-off tsx — the qualify agent loop runs locally (no hosted key needed). `AGENT_ENGINE` env also honored (resolution #4) for other apps.
+- [ops] Stray dev servers on old ports poisoned a debug cycle — sweep `lsof -ti :8080,8100-8109 | xargs kill` before gateway restarts.
+- [cmd] E2E PROOF: form submit (jordan@meridianops.com) → auto-approved 0.95 with reasoning; anonymous status action + `/qualify/status/<responseId>` both 200 unauthenticated.

@@ -619,7 +619,9 @@ function renderFormPage(
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
     .then(function(res) {
       if (!res.ok) { throw new Error(res.data.error || "Failed to submit"); }
-      if (REDIRECT) { window.location.href = REDIRECT; return; }
+      // Lead-router fork: expand {responseId} in the publisher's redirect
+      // URL so demo-form submitters land on their live lead-status page.
+      if (REDIRECT) { window.location.href = REDIRECT.replace("{responseId}", encodeURIComponent(res.data.id || "")); return; }
       document.querySelector(".container").style.display = "none";
       document.getElementById("successView").style.display = "flex";
       if (html.classList.contains("embedded") && window.parent !== window) {

@@ -29,6 +29,7 @@ import type {
 } from "../../shared/types.js";
 import { getDb, schema } from "../db/index.js";
 import { fireIntegrations } from "../lib/integrations.js";
+import { dispatchLeadQualification } from "../lib/lead-router.js";
 import { sendNewResponseEmail } from "../lib/response-email.js";
 import {
   isEmptySubmissionValue,
@@ -307,6 +308,21 @@ export const submitForm = defineEventHandler(async (event: H3Event) => {
     }
   } catch {
     // Non-critical
+  }
+
+  // Lead-router fork: hand the demo form's submission to the qualify app
+  // over A2A (see server/lib/lead-router.ts). Awaited like fireIntegrations
+  // so serverless hosts don't freeze the durable-continuation write; a
+  // dispatch failure must never reject an already-persisted submission.
+  try {
+    await dispatchLeadQualification({
+      formSlug: form.slug,
+      formId: id,
+      responseId,
+      data,
+    });
+  } catch (error) {
+    console.warn("[lead-router] qualification dispatch failed:", error);
   }
 
   return { success: true, id: responseId };
