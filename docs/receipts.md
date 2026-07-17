@@ -65,3 +65,22 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [fix] `AGENT_USER_EMAIL=dev@local.test` added to `apps/scheduler/.env` — the framework's documented explicit override, honored by BOTH resolvers (dev-session.js returns it unchanged). Required local env for fresh clones: `DATABASE_URL`, `AGENT_USER_EMAIL` (both gitignored; production gets real sessions). NOTE for U8: document these in the app README env section.
 - [hand] Comment hardening: `actions/run.ts` documents the load-bearing import order (`@agent-native/core/scripts` evaluates `loadEnv()` → `.env` → dialect selection); both `drizzle*.config.ts` files document the DATABASE_URL regeneration trap (wrong dialect env silently yields "0 tables").
 - [cmd] Re-validation: `pnpm typecheck` clean; `pnpm action list-event-types` / `list-bookings` (no env prefix) return the PG rows; oxfmt applied to all touched files.
+
+## 2026-07-17 — U2: qualify app (custom qualification brain)
+
+- [decision] LLM: direct OpenAI API (`gpt-5-mini`, env `QUALIFY_LLM_MODEL` override) with structured JSON output — no LangChain, by design (resume's direct-API-equivalence claim, made inspectable in `apps/qualify/server/lib/scoring.ts`). Pricing table in code: $0.25/1M in, $2.00/1M out at build time.
+- [decision] Shell `OPENAI_API_KEY` was invalid (401); valid key pulled from 1Password (`op read`, never echoed) into `apps/qualify/.env` (gitignored). Documented for U8 README.
+- [hand] `apps/qualify/server/db/schema.ts` — 5 tables: `leads` (status machine, fit score, cost ledger, audit JSON, statusToken), `firmographics`, `eval_cases`, `eval_runs`, `qualify_settings` (ICP lives here so U6 can prove the gate moves).
+- [hand] `server/lib/enrichment-core.ts` (pure, zero imports) + `enrichment.ts` (DB wrapper) — pure/IO split so vitest never loads the core server chain (OTel CJS noise under vitest's runner).
+- [hand] `server/lib/scoring.ts` — band policy encoded once (`AUTO_THRESHOLD 0.8`, `REVIEW_THRESHOLD 0.4`); tier always derived from score, never trusted from the model; injectable `CallLlm` for tests.
+- [hand] 6 actions: `enrich-lead` (idempotent on formResponseId), `score-icp`, `propose-routing`, `get-lead`, `list-leads`, `update-lead-status` (approval-gate callback surface for U5).
+- [hand] `server/seed/firmographics.ts` — deterministic seeded PRNG, 200 companies, mid-market-heavy; 4 hand-authored fixtures (incl. `meridianops.com` high-fit) for the U6 eval suite. `pnpm seed` idempotent by domain.
+- [bug] `z.enum(LEAD_STATUSES)` crashed action scan — `LEAD_STATUSES` is exported from `db/schema.ts`, not re-exported by `db/index.ts`; import from the schema module directly.
+- [cmd] `pnpm test` — 20/20 unit tests green (enrichment, scoring/band policy, generator determinism).
+
+### U2 verification + provider pivot (2026-07-17)
+- [cmd] Live chain proof (CLI): `enrich-lead` (pat@meridianops.com → matched Meridian Ops) → `score-icp` (qwen3:4b: fit 0.95, high/midmarket, real reasoning) → `propose-routing` (band auto → status approved). Poor-fit case (gmail + student): 0.30, personal → disqualified. Idempotence: re-`enrich-lead` on same formResponseId returns same leadId.
+- [bug] Re-enrichment used to rewind status (disqualified → enriching). Fixed: status only advances new → enriching; later stages are preserved through re-enrichment (protects the U5 gate).
+- [bug] `.sql?raw` imports in db plugins break the action CLI: the runner imports `server/plugins/db.ts` by convention under tsx, which can't parse ?raw. Fixed by wrapping drizzle output as string constants in `server/db/migrations-sql.ts` (both apps); scheduler's plugin renamed to `db.ts` so CLI runs migrations too, with skip-if-set context init. raw.d.ts deleted.
+- [decision] LLM provider pivot: OpenAI key valid but account has insufficient_quota; Anthropic 401; both Gemini keys 403 (checked env, project files, 1Password — five credentials probed). Default provider is now **Ollama** (`qwen3:4b`, local, $0 ledger): `QUALIFY_LLM_PROVIDER=ollama` + `QUALIFY_LLM_MODEL` in app .env. `callOpenAI` remains — funding any OpenAI key flips the demo to hosted with one env var. Bonus story: the demo runs offline.
+- [note] dotenv does not override process env — a stale shell `OPENAI_API_KEY` shadows `.env`. Dev shells should unset stale keys (U8 README must document).

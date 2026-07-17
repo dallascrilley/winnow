@@ -1,6 +1,15 @@
-import { setSchedulingContext } from "@agent-native/scheduling/server";
+import { getSchedulingContext, setSchedulingContext } from "@agent-native/scheduling/server";
 
 import { getDb, schema } from "./db/index.js";
+
+export function isSchedulingContextSet(): boolean {
+  try {
+    getSchedulingContext();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Nitro boots this via server/plugins/scheduling.ts with the request-scoped
