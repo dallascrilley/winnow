@@ -1,0 +1,44 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+overrides:
+  "@assistant-ui/store": ">=0.2.9 <0.2.14"
+  "@assistant-ui/tap": "^0.5.14"
+  better-auth: "1.6.0"
+  nf3: "0.3.17"
+
+onlyBuiltDependencies:
+  - "@swc/core"
+  - better-sqlite3
+  - canvas
+  - electron
+  - esbuild
+  - lightningcss
+  - node-pty
+
+allowBuilds:
+  "@swc/core": true
+  better-sqlite3: true
+  canvas: true
+  electron: true
+  esbuild: true
+  lightningcss: true
+  node-pty: true
+catalog:
+  "@tabler/icons-react": "^3.41.1"
+  "@tailwindcss/vite": "^4.2.4"
+  "@types/react": "^19.2.14"
+  "@types/react-dom": "^19.2.3"
+  "@vitejs/plugin-react": "^6.0.3"
+  "h3": "^2.0.1-rc.20"
+  "listhen": "^1.9.1"
+  "oxfmt": "0.56.0"
+  "react": "^19.2.7"
+  "react-dom": "^19.2.7"
+  "tailwindcss": "^4.2.4"
+  "tsx": "^4.20.3"
+  "typescript": "npm:@typescript/typescript6@^6.0.2"
+  "typescript-7": "npm:typescript@^7.0.2"
+  "vite": "8.1.0"
+  "vitest": "^4.1.5"

@@ -1,0 +1,123 @@
+[build]
+command = "export DATABASE_URL=\"${NETLIFY_DATABASE_URL:-$DATABASE_URL}\" && APP_BASE_PATH=/dispatch VITE_APP_BASE_PATH=/dispatch NITRO_PRESET=netlify pnpm --filter dispatch build"
+publish = "apps/dispatch/dist"
+functions = "apps/dispatch/.netlify/functions-internal"
+
+[build.environment]
+GA_MEASUREMENT_ID = "G-ESF7FYXGN9"
+  NITRO_PRESET = "netlify"
+  NPM_CONFIG_PRODUCTION = "false"
+
+# A2A delegation calls run a full agent loop (LLM + tool calls + DB queries).
+# The framework does not impose a default agent-run timeout; if a template sets
+# AGENT_RUN_SOFT_TIMEOUT_MS, keep it below this function timeout so the hidden
+# auto-continuation path can hand off before Netlify kills the function.
+  APP_BASE_PATH = "/dispatch"
+  VITE_APP_BASE_PATH = "/dispatch"
+[functions."*"]
+timeout = 75
+
+[[redirects]]
+  from = "/"
+  to = "/dispatch/overview"
+  status = 302
+
+[[redirects]]
+  from = "/dispatch"
+  to = "/dispatch/overview"
+  status = 302
+
+[[redirects]]
+  from = "/overview"
+  to = "/dispatch/overview"
+  status = 302
+
+[[redirects]]
+  from = "/login"
+  to = "/dispatch/login"
+  status = 302
+
+[[redirects]]
+  from = "/signup"
+  to = "/dispatch/signup"
+  status = 302
+
+[[redirects]]
+  from = "/apps"
+  to = "/dispatch/apps"
+  status = 302
+
+[[redirects]]
+  from = "/apps/new-app"
+  to = "/dispatch/new-app"
+  status = 302
+
+[[redirects]]
+  from = "/new-app"
+  to = "/dispatch/new-app"
+  status = 302
+
+[[redirects]]
+  from = "/vault"
+  to = "/dispatch/vault"
+  status = 302
+
+[[redirects]]
+  from = "/integrations"
+  to = "/dispatch/integrations"
+  status = 302
+
+[[redirects]]
+  from = "/agents"
+  to = "/dispatch/agents"
+  status = 302
+
+[[redirects]]
+  from = "/workspace"
+  to = "/dispatch/workspace"
+  status = 302
+
+[[redirects]]
+  from = "/messaging"
+  to = "/dispatch/messaging"
+  status = 302
+
+[[redirects]]
+  from = "/extensions"
+  to = "/dispatch/extensions"
+  status = 302
+
+[[redirects]]
+  from = "/destinations"
+  to = "/dispatch/destinations"
+  status = 302
+
+[[redirects]]
+  from = "/identities"
+  to = "/dispatch/identities"
+  status = 302
+
+[[redirects]]
+  from = "/approval"
+  to = "/dispatch/approval"
+  status = 302
+
+[[redirects]]
+  from = "/approvals"
+  to = "/dispatch/approvals"
+  status = 302
+
+[[redirects]]
+  from = "/audit"
+  to = "/dispatch/audit"
+  status = 302
+
+[[redirects]]
+  from = "/thread-debug"
+  to = "/dispatch/thread-debug"
+  status = 302
+
+[[redirects]]
+  from = "/team"
+  to = "/dispatch/team"
+  status = 302
