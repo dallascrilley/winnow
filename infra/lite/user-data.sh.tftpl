@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# First apply is a bootstrap window, not an always-on deployment. Always stop
+# the host when cloud-init completes or fails; later authenticated wakes own a
+# renewable stop lease.
+trap 'shutdown -h now || true' EXIT
+
+dnf install -y awscli2 curl docker
+
+install -d -m 0755 /usr/local/lib/docker/cli-plugins /opt/inbound-lite /etc/inbound-lite
+curl -fsSL --retry 3 \
+  https://github.com/docker/compose/releases/download/v2.39.2/docker-compose-linux-aarch64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+echo '54488fffb60782f3c8787a48b95ed15f49f5a3a85f4105304bd46db5edd9db61  /usr/local/lib/docker/cli-plugins/docker-compose' | sha256sum -c -
+chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+
+%{ for path, content in runtime_files ~}
+printf '%s' '${content}' | base64 -d > '${path}'
+%{ endfor ~}
+
+chmod 0755 /opt/inbound-lite/app-entrypoint.sh /opt/inbound-lite/deploy.sh /opt/inbound-lite/healthcheck.sh
+chmod 0644 /opt/inbound-lite/compose.yaml /opt/inbound-lite/Caddyfile /etc/systemd/system/inbound-lite.service /etc/systemd/system/inbound-lite-health.service /etc/systemd/system/inbound-lite-health.timer
+chmod 0600 /etc/inbound-lite/config.env
+
+systemctl enable --now docker
+systemctl daemon-reload
+systemctl enable inbound-lite.service
+systemctl enable --now inbound-lite-health.timer
+systemctl start inbound-lite.service

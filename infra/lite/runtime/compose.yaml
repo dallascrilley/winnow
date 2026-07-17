@@ -1,0 +1,93 @@
+name: inbound-lite
+
+services:
+  postgres:
+    image: postgres:16.9-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: inbound
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+    secrets:
+      - database_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inbound -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: &awslogs
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:?AWS_REGION is required}"
+        awslogs-group: "/inbound-lite/runtime"
+        awslogs-create-group: "false"
+        tag: "{{.Name}}"
+
+  app:
+    image: "${APP_IMAGE_REF:?APP_IMAGE_REF is required}"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/opt/inbound-lite/app-entrypoint.sh"]
+    environment:
+      WORKSPACE_PORT: "8080"
+      WORKSPACE_PUBLIC_PREFIX: /inbound
+      WORKSPACE_GATEWAY_URL: http://127.0.0.1:8080
+      APP_URL: "${PUBLIC_URL:?PUBLIC_URL is required}/inbound"
+      BETTER_AUTH_URL: "${PUBLIC_URL:?PUBLIC_URL is required}/inbound"
+      PUBLIC_URL: "${PUBLIC_URL:?PUBLIC_URL is required}/inbound"
+      WORKSPACE_ORG_NAME: Inbound Demo
+      WORKSPACE_ORG_DOMAIN: inbound-demo.test
+      WORKSPACE_ORG_OWNER_EMAIL: demo@inbound-demo.test
+      DISPATCH_DEFAULT_OWNER_EMAIL: demo@inbound-demo.test
+      AGENT_USER_EMAIL: demo@inbound-demo.test
+      ANALYTICS_TRACK_URL: http://127.0.0.1:8080/analytics/track
+      DATABASE_SSLMODE: disable
+      QUALIFY_LLM_PROVIDER: openai
+      QUALIFY_LLM_MODEL: gpt-5-mini-2025-08-07
+    secrets:
+      - database_password
+      - better_auth_secret
+      - a2a_secret
+      - analytics_public_key
+      - openai_api_key
+    volumes:
+      - ./app-entrypoint.sh:/opt/inbound-lite/app-entrypoint.sh:ro
+    logging: *awslogs
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      ORIGIN_ADDRESS: "${ORIGIN_ADDRESS:?ORIGIN_ADDRESS is required}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging: *awslogs
+
+secrets:
+  database_password:
+    file: /run/inbound-lite/secrets/DATABASE_PASSWORD
+  better_auth_secret:
+    file: /run/inbound-lite/secrets/BETTER_AUTH_SECRET
+  a2a_secret:
+    file: /run/inbound-lite/secrets/A2A_SECRET
+  analytics_public_key:
+    file: /run/inbound-lite/secrets/ANALYTICS_PUBLIC_KEY
+  openai_api_key:
+    file: /run/inbound-lite/secrets/OPENAI_API_KEY
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,8 @@
+[Unit]
+Description=Repair the Inbound lite app container when it is stopped
+After=docker.service inbound-lite.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/inbound-lite/healthcheck.sh
+TimeoutStartSec=900

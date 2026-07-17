@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the Inbound lite app container every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=inbound-lite-health.service
+
+[Install]
+WantedBy=timers.target

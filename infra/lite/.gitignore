@@ -1,0 +1,7 @@
+.terraform/
+!.terraform.lock.hcl
+*.tfplan
+*.tfstate
+*.tfstate.*
+*.tfvars
+wake-handler.zip
