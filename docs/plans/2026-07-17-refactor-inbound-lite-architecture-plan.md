@@ -1,7 +1,8 @@
 ---
 date: 2026-07-17
 origin: docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md
-td_epic: none
+td_epic: td-af0109
+td_units: [td-48285e, td-f93367]
 ---
 
 # Inbound Dual-Profile AWS Architecture
@@ -10,9 +11,9 @@ Living document. Update **Progress**, **Surprises & Discoveries**, **Decision Lo
 
 ## Purpose / Big Picture
 
-Inbound should remain a genuine, always-available public demo without paying production-style managed-service rent for portfolio traffic. The finished system has two AWS profiles that share the same application image, environment contract, seeds, and planted-lead smoke test:
+Inbound should remain a genuine, always-reachable public demo without paying production-style managed-service rent while nobody is using it. The finished system has two AWS profiles that share the same application image, environment contract, seeds, and planted-lead smoke test:
 
-- **Lite** is the live profile. One ARM64 EC2 host runs Caddy, the existing five-app container, and PostgreSQL 16. Hosted `gpt-5-mini` performs live scoring. ECR, SSM Parameter Store, CloudWatch Logs, encrypted EBS, S3 backups, IAM roles, Terraform, and the public Cloudflare path remain real and continuously exercised.
+- **Lite** is the live, hibernating profile. The shared Cloudflare demo hub always serves a launch/status shell. A valid visitor activation wakes one ARM64 EC2 host for a renewable 60-minute lease; the host runs Caddy, the existing five-app container, and PostgreSQL 16, then stops cleanly after the lease expires. Hosted `gpt-5-mini` performs live scoring. ECR, SSM Parameter Store, CloudWatch Logs, encrypted EBS, S3 backups, IAM roles, API Gateway, Lambda, Terraform, and the public Cloudflare path remain real and continuously exercised.
 - **Standard** is the proof profile. The existing ECS Fargate + Ollama + RDS + ALB + ACM topology remains intact as code, but runs only for a clean rebuild, interview, or periodic proof. Each run applies from clean state, pushes immutable images, seeds, passes the same smoke test, publishes a sanitized receipt, and destroys its billable resources.
 
 The stable visitor URL remains `https://demos.dallascrilley.com/inbound`. That hostname is a shared Cloudflare Pages demo hub, so a path-scoped Pages Function proxies only `/inbound*` to the selected origin. Neither AWS profile owns or replaces the shared hostname's DNS.
@@ -23,7 +24,14 @@ Visitor
   v
 demos.dallascrilley.com/inbound  (shared Cloudflare Pages host)
   |
-  +-- /inbound* Pages Function --> inbound-origin.dallascrilley.com
+  +-- sleeping --> launch/status shell
+  |                  |
+  |                  +--> authenticated wake --> API Gateway --> Lambda
+  |                                                        |        |
+  |                                                        |        +--> start tagged EC2
+  |                                                        +----------> renew 60-minute stop lease
+  |
+  +-- awake --> /inbound* Pages Function --> inbound-origin.dallascrilley.com
                                       |
                                       v
                                  Elastic IP :443
@@ -49,10 +57,11 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-17 17:01Z) Ranked 40 ideas into six portfolio-preserving survivors in `docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md`.
 - [x] (2026-07-17 17:10Z) Rechecked live AWS state: RDS and ALB are active, but ECS has zero running tasks, one pending task, no registered targets, and a missing Ollama ECR digest error.
 - [x] (2026-07-17 17:15Z) Selected the dual-profile architecture and resolved EC2 versus Lightsail, public routing, inference, persistence, and proof-run decisions.
+- [x] (2026-07-17 17:46Z) Reframed lite as an on-demand hibernating origin. Live AWS rates make the fixed idle floor about $6.05/month and a 30-running-hour month about $7.06 before model calls and low-volume usage charges.
 - [ ] U1. Recover and prove the existing standard profile.
 - [ ] U2. Qualify hosted inference for the live profile.
 - [ ] U3. Make the runtime portable across RDS and local PostgreSQL.
-- [ ] U4. Build and prove the lite EC2 profile.
+- [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
 - [ ] U5. Make synthetic state portable and recovery-tested.
 - [ ] U6. Turn the standard profile into a bounded proof/interview mode.
 - [ ] U7. Cut over the shared demo route and retire always-on standard resources.
@@ -60,10 +69,10 @@ inbound-standard-origin.dallascrilley.com/inbound
 
 ## Requirements
 
-- **R1.** `https://demos.dallascrilley.com/inbound` remains the stable, no-login public URL and completes the existing form → score → route → booking → funnel journey.
+- **R1.** `https://demos.dallascrilley.com/inbound` remains the stable, no-login public URL. It always renders a launch/status shell and, after a cold wake of at most 180 seconds, completes the existing form → score → route → booking → funnel journey.
 - **R2.** Lite is a real AWS deployment, not a static replay: the five apps, PostgreSQL writes, hosted model call, audit trail, and funnel movement execute live.
-- **R3.** The lite AWS base must cost at most **$35/month** before model calls and low-volume logs/backups. The expected base is about **$30.58/month**: t4g.medium $24.53, 30 GB gp3 $2.40, and one public IPv4 $3.65 at the 2026-07-17 us-east-1 rate card.
-- **R4.** With one standard proof run of at most 24 hours per month, total AWS infrastructure must remain at most **$40/month** before model calls. Every proof run has a $5 estimated ceiling and ends with a verified teardown.
+- **R3.** Lite's core stopped-host floor must remain at most **$6.05/month**, its full low-volume idle base must remain at most **$8/month**, and a 30-running-hour month must remain at most **$10/month** before model calls. At the 2026-07-17 us-east-1 rate card, the core estimate is 30 GB gp3 at $2.40/month, one public IPv4 at $3.65/month, and `t4g.medium` compute at $0.0336/hour: **$7.06 at 30 hours** before low-volume ECR, S3, CloudWatch, API Gateway, Lambda, and Scheduler usage, versus $30.58 always-on.
+- **R4.** With one standard proof run of at most 24 hours per month, total AWS infrastructure must remain at most **$15/month** before model calls. Every proof run has a $5 estimated ceiling and ends with a verified teardown.
 - **R5.** Lite and standard use the same application Dockerfile, app image digest, environment variable names, production seed contract, and `scripts/smoke.sh` behavior.
 - **R6.** Live scoring uses the pinned `gpt-5-mini-2025-08-07` snapshot only after credential, accuracy, stability, latency, and cost gates pass. Offline `qwen3:4b` remains a periodically executed independence proof.
 - **R7.** PostgreSQL state is recoverable from a versioned golden-state backup. The accepted demo RPO is 24 hours and the restore-time target is 15 minutes.
@@ -72,6 +81,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - **R10.** Standard ECS, RDS, ALB, ACM, ECR, SSM, CloudWatch, ARM64, and offline Ollama claims remain reproducible and backed by a dated green receipt, not merely retained source files.
 - **R11.** Cutover is reversible without data loss. Standard resources are destroyed only after lite passes direct-origin and edge-path smoke tests, a fresh backup restores successfully, and the user explicitly approves the destructive step.
 - **R12.** Public documentation distinguishes **live**, **periodically proven**, and **local/offline-capable** surfaces and replaces the stale ~$55/month claim with measured, dated figures.
+- **R13.** Status and wake calls are authenticated server-to-server, rate-limited, idempotent, and expose no AWS identifiers or credentials. Mutating IAM permissions are scoped to the tagged lite instance and one named stop schedule; read-only EC2 describe access uses the minimum wildcard AWS requires. Each valid activation creates or extends one 60-minute lease; the instance stops within five minutes of lease expiry without losing PostgreSQL state.
 
 ## Surprises & Discoveries
 
@@ -81,21 +91,24 @@ inbound-standard-origin.dallascrilley.com/inbound
 - RDS requires `sslmode=require`, but the lite Postgres container does not provide TLS. `scripts/prod-start.mjs` and `scripts/prod-seed.mjs` currently hardcode RDS behavior and therefore need an explicit database transport contract.
 - The last OpenAI credential probe reached the API but returned `insufficient_quota`. Hosted inference is a real cutover gate, not a documentation-only environment switch.
 - The Inbound repository has no `.todos/` database. Existing career-ops task `td-48285e` still owns the unfinished U8 standard deployment; this plan does not initialize or duplicate tracker state.
+- Stopping an EBS-backed EC2 instance removes compute charges while preserving EBS data, its network interface, IPv6 addresses, and any Elastic IP. The 30 GB gp3 volume and public IPv4 still cost about $6.05/month, but 30 monthly running hours add only $1.01 of compute.
+- Provisioned RDS is not a durable hibernation primitive: it automatically restarts after seven stopped days. Aurora Serverless v2 can auto-pause at 0 ACUs, but adopting it would add an Aurora migration and resume behavior to a workload that can already keep app and PostgreSQL state together on the stopped EC2 host.
 
 ## Decision Log
 
-- **Decision:** Use one on-demand `t4g.medium` EC2 instance with 30 GB encrypted gp3 for lite. **Rationale:** It reuses the existing ARM64 image and preserves EC2, Graviton, IAM instance profiles, ECR, SSM, CloudWatch, and Terraform signal. Lightsail is about $6.58/month cheaper at 4 GB, but sacrifices several of those portfolio surfaces and requires a separate x86 image path. **Date/Author:** 2026-07-17 / Codex.
+- **Decision:** Use one hibernating on-demand `t4g.medium` EC2 instance with 30 GB encrypted gp3 for lite. **Rationale:** It reuses the existing ARM64 image and preserves EC2, Graviton, IAM instance profiles, ECR, SSM, CloudWatch, and Terraform signal. Stopping it between visits cuts modeled compute from $24.53/month to $1.01 at 30 running hours while the application and PostgreSQL data remain on EBS. Lightsail sacrifices several of those portfolio surfaces and requires a separate x86 image path. **Date/Author:** 2026-07-17 / Codex.
 - **Decision:** Keep `infra/` as the standard Terraform root and add an independent `infra/lite/` root. **Rationale:** Moving the live standard resources between modules or states adds risky Terraform address migration without reducing runtime cost. Independent names and state let either profile be created or destroyed without coupling.
 - **Decision:** Preserve the shared demo hostname through a Cloudflare Pages Function, with `inbound-origin.dallascrilley.com` for lite and `inbound-standard-origin.dallascrilley.com` for standard proof. **Rationale:** Path routing belongs at the existing demo hub; hostname-level DNS changes are unsafe.
 - **Decision:** Use Caddy as the lite origin proxy. **Rationale:** A hostname plus open ports 80/443 gives automatic certificate issuance/renewal and a small reverse-proxy configuration, removing ALB and ACM cost from lite while retaining HTTPS.
 - **Decision:** Use hosted inference for live visitors and Ollama only in the standard proof lane. **Rationale:** Ollama accounts for roughly half of the current 8 GB task allocation and creates 1–2 minute scoring latency. The existing provider seam and eval suite preserve independence more credibly through dated execution evidence than idle memory.
 - **Decision:** Keep PostgreSQL local to lite and back it up to private versioned S3. **Rationale:** Analytics genuinely requires Postgres, but synthetic portfolio data does not justify always-on RDS. Recovery testing becomes additional portfolio evidence.
-- **Decision:** Do not build a static replay, visitor wake button, queue, serverless rewrite, or scheduled office hours. **Rationale:** Those ideas add product complexity or weaken R2. A small always-on host is already within the target budget.
+- **Decision:** Put a launch/status shell at the shared demo edge and wake lite through an authenticated API Gateway + Lambda control plane. Each valid activation starts only the tagged instance and creates or extends a 60-minute stop lease. **Rationale:** The shell keeps the public URL responsive while compute sleeps; the lease bounds cost without turning the product into a static replay. API Gateway, Lambda, lifecycle IAM, idempotency, and measured cold-start UX add stronger event-driven portfolio evidence than an idle server.
+- **Decision:** Do not rewrite the five Nitro apps as Lambda functions or migrate local PostgreSQL to Aurora Serverless v2 in this pass. **Rationale:** Those services can reach a lower theoretical idle floor, but the current product is intentionally consolidated into one long-lived multi-process container. Hibernating that tested boundary captures nearly all compute savings with much less migration risk.
 - **Decision:** Default standard proof mode is apply → verify → destroy in one operator session. Interview mode may retain it temporarily only with an explicit keep decision and teardown command. **Rationale:** Default behavior must fail toward low spend.
 
 ## Outcomes & Retrospective
 
-No implementation outcomes yet. At completion, record the actual lite monthly run rate, hosted-model eval results, restore time, standard proof-run cost, cutover downtime, and whether t4g.small passed the post-cutover rightsizing gate.
+No implementation outcomes yet. At completion, record the actual fixed idle floor, monthly running hours, wake-to-healthy p50/p95, lease-stop reliability, hosted-model eval results, restore time, standard proof-run cost, cutover downtime, and whether t4g.small passed the post-cutover rightsizing gate.
 
 ## Context and Orientation
 
@@ -109,9 +122,9 @@ The live public hostname is outside this repository. `../job-search/demo-lab` is
 
 First, recover the existing standard stack and capture one incontestable green baseline. This prevents cost optimization from becoming an excuse to retire infrastructure that never passed production smoke. In parallel with no public cutover, prove a funded pinned OpenAI model against the existing eval suite and record its cost/latency/stability.
 
-Next, make the application image profile-neutral: database SSL mode becomes explicit, smoke output stops assuming Ollama, and the app image build/push path becomes reusable. Then add the independent lite Terraform root and Compose runtime. Prove it first at its origin hostname, with secrets fetched through the EC2 role and logs reaching CloudWatch.
+Next, make the application image profile-neutral: database SSL mode becomes explicit, smoke output stops assuming Ollama, and the app image build/push path becomes reusable. Then add the independent lite Terraform root, Compose runtime, and narrowly scoped wake/lease control plane. Prove a stopped → wake → healthy → smoke → lease-expired → stopped cycle at the origin, with secrets fetched through roles and logs reaching CloudWatch.
 
-After lite is healthy, create and restore the golden-state backup into a fresh database volume. Add the bounded standard proof command and sanitized receipt format while the current standard state is still available for comparison. Only then add the path-scoped Cloudflare adapter, cut the public route to lite, observe it, and request approval to destroy standard billable resources.
+After lite is healthy, create and restore the golden-state backup into a fresh database volume. Add the bounded standard proof command and sanitized receipt format while the current standard state is still available for comparison. Only then add the path-scoped Cloudflare launch/status adapter, connect its server-side wake call, cut the public route to lite, observe cold and warm visits, and request approval to destroy standard billable resources.
 
 Finally, update the portfolio narrative. The public repository should show the two profiles, proof freshness, actual costs, recovery evidence, and the architectural correction from overbuilt managed services to a right-sized live system.
 
@@ -144,21 +157,21 @@ Finally, update the portfolio narrative. The public repository should show the t
 - **Tests:** Write the URL-helper test first for query-free and query-bearing base URLs, five database names, default `require`, explicit `disable`, and invalid mode rejection. Run the production image with Postgres 16 in a local Compose fixture using `disable`, and confirm the same image still constructs `require` URLs for standard.
 - **Verification:** `node --test scripts/lib/database-url.test.mjs`, `bash -n scripts/smoke.sh scripts/push-app-image.sh infra/push-images.sh`, `pnpm typecheck`, `pnpm -r test`, `pnpm build`, and a local container `/inbound/healthz` plus public-action smoke.
 
-### U4. Build and prove the lite EC2 profile
+### U4. Build and prove the hibernating lite EC2 profile
 
-- **Goal:** Provision the always-on ≤$35/month AWS origin and run the complete live workflow there.
-- **Requirements:** R1, R2, R3, R5, R8, R9.
-- **Files:** `infra/lite/main.tf`, `infra/lite/variables.tf`, `infra/lite/outputs.tf`, `infra/lite/network.tf`, `infra/lite/iam.tf`, `infra/lite/ecr.tf`, `infra/lite/ssm.tf`, `infra/lite/compute.tf`, `infra/lite/logs.tf`, `infra/lite/runtime/compose.yaml`, `infra/lite/runtime/Caddyfile`, `infra/lite/runtime/app-entrypoint.sh`, `infra/lite/runtime/inbound-lite.service`, `infra/lite/user-data.sh.tftpl`, `infra/lite/push-image.sh`, `infra/lite/deploy.sh`.
-- **Approach:** Create an independent `inbound-lite` state and resource namespace. Provision one `t4g.medium`, encrypted 30 GB gp3 root volume, Elastic IP, IAM role/instance profile, ECR repository, SSM SecureStrings, CloudWatch log group, security group for 80/443 only, and budget alarm inputs stored in gitignored tfvars. Require IMDSv2 and SSM Session Manager; do not create a key pair or port-22 rule. User data installs only the runtime prerequisites and checked-in service assets. `deploy.sh` retrieves SecureStrings with `umask 077`, writes one mode-0400 file per secret, logs into ECR, and starts Caddy, app, and PostgreSQL 16 through Compose. PostgreSQL uses its supported password-file input; the app mounts secret files read-only and `app-entrypoint.sh` exports their values inside the container process immediately before executing `scripts/prod-start.mjs`, so values are absent from Compose config and Docker inspect. Caddy proxies the full `/inbound` path to port 8080 and persists ACME state. Docker uses the `awslogs` driver. Set non-secret `DATABASE_SSLMODE=disable`, `QUALIFY_LLM_PROVIDER=openai`, and the pinned snapshot only in lite.
-- **Tests:** Terraform policy assertions cover instance type, encryption, IMDSv2, no SSH ingress, no public Postgres/app port, and private S3/log resources. Compose config must resolve with placeholder env names only. Reboot the instance and verify automatic recovery. Stop the app container and verify systemd/Compose restarts it. Confirm no secret value appears in user data, Terraform plan text, Docker inspect output, or CloudWatch logs.
-- **Verification:** `terraform -chdir=infra/lite fmt -check`, `terraform -chdir=infra/lite init`, `terraform -chdir=infra/lite validate`, `docker compose -f infra/lite/runtime/compose.yaml config`, direct-origin `curl` checks, and `./scripts/smoke.sh https://inbound-origin.dallascrilley.com/inbound`. The first `terraform -chdir=infra/lite plan -detailed-exitcode` must return 2 with only intended resources; the post-apply run must return 0. Record actual EC2/EBS/IPv4/ECR/S3/CloudWatch rate-card inputs. U4a may downsize to `t4g.small` only after a 24-hour run shows zero OOM/restarts and p95 host memory below 1.5 GB; otherwise t4g.medium remains final.
+- **Goal:** Provision a ≤$10/month-at-30-hours AWS origin that wakes for real visitors, runs the complete live workflow, and stops after a bounded lease.
+- **Requirements:** R1, R2, R3, R5, R8, R9, R13.
+- **Files:** `infra/lite/main.tf`, `infra/lite/variables.tf`, `infra/lite/outputs.tf`, `infra/lite/network.tf`, `infra/lite/iam.tf`, `infra/lite/ecr.tf`, `infra/lite/ssm.tf`, `infra/lite/compute.tf`, `infra/lite/lifecycle.tf`, `infra/lite/logs.tf`, `infra/lite/wake/handler.mjs`, `infra/lite/wake/handler.test.mjs`, `infra/lite/runtime/compose.yaml`, `infra/lite/runtime/Caddyfile`, `infra/lite/runtime/app-entrypoint.sh`, `infra/lite/runtime/inbound-lite.service`, `infra/lite/user-data.sh.tftpl`, `infra/lite/push-image.sh`, `infra/lite/deploy.sh`.
+- **Approach:** Create an independent `inbound-lite` state and resource namespace. Provision one `t4g.medium`, encrypted 30 GB gp3 root volume, Elastic IP, IAM role/instance profile, ECR repository, SSM SecureStrings, CloudWatch log group, security group for 80/443 only, and budget alarm inputs stored in gitignored tfvars. Add authenticated API Gateway status/wake routes and one lifecycle Lambda. Its mutating permissions can start only the tagged lite instance and create or update one named EventBridge Scheduler stop lease; unavoidable `ec2:DescribeInstances` access is read-only and response-filtered. Each schedule invokes the lifecycle Lambda's lease-expiry operation, which performs the U5 pre-stop backup when available and then requests a graceful stop. The API requires a short-lived timestamped HMAC from the server-side Cloudflare function, applies route throttling, treats duplicate signatures and stopped/pending/running transitions idempotently, and extends a 60-minute lease on each valid activation. Require IMDSv2 and SSM Session Manager; do not create a key pair or port-22 rule. User data installs only the runtime prerequisites and checked-in service assets. `deploy.sh` retrieves SecureStrings with `umask 077`, writes one mode-0400 file per secret, logs into ECR, and starts Caddy, app, and PostgreSQL 16 through Compose. PostgreSQL uses its supported password-file input; the app mounts secret files read-only and `app-entrypoint.sh` exports their values inside the container process immediately before executing `scripts/prod-start.mjs`, so values are absent from Compose config and Docker inspect. Caddy proxies the full `/inbound` path to port 8080 and persists ACME state. Docker uses the `awslogs` driver. Set non-secret `DATABASE_SSLMODE=disable`, `QUALIFY_LLM_PROVIDER=openai`, and the pinned snapshot only in lite.
+- **Tests:** Write lifecycle-handler tests first for invalid/expired signatures, duplicate signatures, wrong instance tag, stopped/pending/running states, status response minimization, concurrent activations, lease renewal, lease-expiry stop, AWS API failure redaction, and throttle responses. Terraform policy assertions cover instance type, encryption, IMDSv2, scoped lifecycle IAM, no SSH ingress, no public Postgres/app port, and private S3/log resources. Compose config must resolve with placeholder env names only. Reboot the instance and verify automatic recovery. Stop the app container and verify systemd/Compose restarts it. Confirm no secret or AWS resource identifier appears in user data, Terraform plan text, public API responses, Docker inspect output, or CloudWatch logs.
+- **Verification:** `terraform -chdir=infra/lite fmt -check`, `terraform -chdir=infra/lite init`, `terraform -chdir=infra/lite validate`, wake-handler unit tests, `docker compose -f infra/lite/runtime/compose.yaml config`, direct-origin `curl` checks, and `./scripts/smoke.sh https://inbound-origin.dallascrilley.com/inbound`. From a stopped instance, require authenticated wake to reach all-five-app health within 180 seconds, pass full smoke, preserve a fixed state marker across stop/start, renew the lease on a second activation, and return to `stopped` within five minutes after the final lease expires. The first Terraform plan must contain only intended resources; the post-apply run must return 0. Record actual EC2/EBS/IPv4/API Gateway/Lambda/Scheduler/ECR/S3/CloudWatch rate-card inputs. U4a may downsize to `t4g.small` only after cold-wake smoke shows zero OOM/restarts and p95 host memory below 1.5 GB; otherwise `t4g.medium` remains final.
 
 ### U5. Make synthetic state portable and recovery-tested
 
 - **Goal:** Meet the 24-hour RPO and 15-minute restore target without always-on RDS.
 - **Requirements:** R7, R8, R11.
 - **Files:** `infra/lite/backup.tf`, `infra/lite/runtime/inbound-backup.service`, `infra/lite/runtime/inbound-backup.timer`, `scripts/backup-golden-state.sh`, `scripts/restore-golden-state.sh`, `scripts/verify-golden-state.mjs`, `docs/receipts/golden-state-recovery.md`.
-- **Approach:** Create a private, versioned, encrypted S3 bucket with public access blocked and a 30-day noncurrent-version lifecycle. A daily systemd timer exports all five databases in custom format, writes a manifest containing schema/app Git SHA, image digest, database list, row-count checksums, eval model/prompt hash, and UTC time, then uploads without logging credentials or data. Restore creates fresh databases, applies the existing app migrations/seeds where required, imports the dumps, and runs fixed integrity queries.
+- **Approach:** Create a private, versioned, encrypted S3 bucket with public access blocked and a 30-day noncurrent-version lifecycle. A daily systemd timer and the graceful lease-stop path export all five databases in custom format, write a manifest containing schema/app Git SHA, image digest, database list, row-count checksums, eval model/prompt hash, and UTC time, then upload without logging credentials or data. Restore creates fresh databases, applies the existing app migrations/seeds where required, imports the dumps, and runs fixed integrity queries. A failed pre-stop backup emits an alarm and preserves the last known-good object; synthetic-state policy may still stop the instance to keep the cost bound, but the failure must be visible in the next launch shell.
 - **Tests:** Corrupt or omit one archive and require restore to fail before replacing live state. Restore the latest package into a fresh Postgres volume, verify five databases, compare row-count checksums, load the public funnel, and submit a new planted lead. Confirm backup objects and manifests contain no secrets or personal/customer data; only synthetic demo data is allowed.
 - **Verification:** `bash -n scripts/backup-golden-state.sh scripts/restore-golden-state.sh`, focused tests for manifest validation, a timed fresh-volume restore under 15 minutes, `scripts/verify-golden-state.mjs`, and a complete `scripts/smoke.sh` pass after restore.
 
@@ -176,8 +189,8 @@ Finally, update the portfolio narrative. The public repository should show the t
 - **Goal:** Serve the public Inbound path through lite without changing the shared demo hostname or breaking other demos.
 - **Requirements:** R1, R2, R9, R11.
 - **Files:** `../job-search/demo-lab/functions/inbound/[[path]].js`, `../job-search/demo-lab/tests/inbound-proxy.test.js`, `../job-search/edge/demo-router/worker.js`, `../job-search/edge/demo-router/worker.test.js`, `../job-search/docs/ops/demo-routing-ownership.md`, `.agents-state/handoff.md`.
-- **Approach:** In a separate job-search worktree, add a Pages Function that matches only `/inbound*`, streams method/query/body to the configured `INBOUND_ORIGIN`, strips visitor authorization/cookies and origin-only headers, disables caching for dynamic responses, and preserves status/location/content type. Add `inbound` to the existing flagship/root-path mapping so `dallascrilley.com/demos/inbound` maps to the same Pages path. Configure the Pages environment to use the lite origin; do not hardcode it in source. Prove the lite origin directly, then deploy the edge change after explicit approval because it mutates a public external surface. Observe both public URLs and the planted-lead workflow. Keep the green standard profile available for one rollback window of at most 24 hours. After the window, obtain explicit approval, create/verify the final golden-state backup, run the standard receipt capture, and destroy standard resources.
-- **Tests:** The Pages Function test covers GET/POST, query/body streaming, `/inbound` and nested paths, upstream redirect/status propagation, header stripping, and non-Inbound isolation. Existing demo-router tests must remain green, including all prior flagship routes. Browser and curl checks cover `demos.dallascrilley.com/inbound`, `dallascrilley.com/demos/inbound`, at least two unrelated demos, status polling, booking, and funnel movement.
+- **Approach:** In a separate job-search worktree, add a Pages Function that matches only `/inbound*`. It calls the authenticated lifecycle status route server-side and returns only a minimal same-origin state. When origin status is stopped, pending, or unhealthy, GET requests receive an always-available launch/status shell; its same-origin activation POST is rate-limited and the server-side function signs a short-lived timestamped wake request using an environment secret that never reaches the browser. The shell polls bounded same-origin status until healthy, shows a plain-language cold-start estimate and lease time, and then navigates to the live route. When awake, the function streams method/query/body to the configured `INBOUND_ORIGIN`, strips visitor authorization/cookies and origin-only headers, disables caching for dynamic responses, and preserves status/location/content type. Add `inbound` to the existing flagship/root-path mapping so `dallascrilley.com/demos/inbound` maps to the same Pages path. Configure origin and lifecycle endpoint values in the Pages environment; do not hardcode them in source. Prove the lite origin directly, then deploy the edge change after explicit approval because it mutates a public external surface. Observe cold and warm behavior at both public URLs and run the planted-lead workflow. Keep the green standard profile available for one rollback window of at most 24 hours. After the window, obtain explicit approval, create/verify the final golden-state backup, run the standard receipt capture, and destroy standard resources.
+- **Tests:** The Pages Function test covers sleeping status, valid activation, throttled/failed activation, bounded polling, GET/POST proxying, query/body streaming, `/inbound` and nested paths, upstream redirect/status propagation, header stripping, secret non-disclosure, and non-Inbound isolation. Existing demo-router tests must remain green, including all prior flagship routes. Browser and curl checks cover a cold wake, warm visit, `demos.dallascrilley.com/inbound`, `dallascrilley.com/demos/inbound`, at least two unrelated demos, status polling, booking, funnel movement, and lease expiry.
 - **Verification:** In job-search, run `pnpm --dir demo-lab test`, `pnpm --dir demo-lab build`, `node --test edge/demo-router/worker.test.js`, and Wrangler dry-runs. After approved deploy, require both Inbound URLs to pass smoke and unrelated demo spot-checks to retain their existing status/headers. Rollback changes only `INBOUND_ORIGIN` back to the still-running standard origin; after standard destruction, rollback restores the latest lite backup onto a replacement lite instance.
 
 ### U8. Publish the portfolio and FinOps case study
@@ -185,9 +198,9 @@ Finally, update the portfolio narrative. The public repository should show the t
 - **Goal:** Convert the architecture correction into clear, honest senior-level portfolio evidence.
 - **Requirements:** R3, R4, R10, R12.
 - **Files:** `README.md`, `docs/architecture.md`, `docs/receipts.md`, `docs/cost-case-study.md`, `docs/receipts/aws-standard/latest.json`, `docs/receipts/aws-lite-cost.md`, and the Inbound card/content in `../job-search/demo-lab`.
-- **Approach:** Replace the single architecture diagram with live-lite and proof-standard diagrams. Publish the original estimate, corrected rate-card estimate, chosen lite cost, actual first billing observations, and why each service moved or remained. Add a capability matrix labeled live/periodic/local, recovery receipt, hosted/offline eval comparison, latest standard proof timestamp, and a two-minute recruiter path. Update wording so “runs fully offline” describes the verified proof lane, not the continuously live lane. Link the case study from the demo hub without exposing secrets, account details, or internal-only endpoints.
+- **Approach:** Replace the single architecture diagram with hibernating-live-lite and proof-standard diagrams. Publish the original estimate, corrected rate-card estimate, always-on-lite counterfactual, fixed idle floor, running-hour formula, actual first billing observations, and why each service moved or remained. Add a capability matrix labeled live/periodic/local, cold-start and lease evidence, recovery receipt, hosted/offline eval comparison, latest standard proof timestamp, and a two-minute recruiter path. Update wording so “runs fully offline” describes the verified proof lane, not the live scoring lane. Link the case study from the demo hub without exposing secrets, account details, or internal-only endpoints.
 - **Tests:** Run every documented command or mark it as an operator-only destructive command. Check every public URL, image, and receipt link. Confirm the README no longer claims ~$55/month or implies Ollama is always live. Verify the public page communicates the tradeoff within one screen and the deeper receipt remains available for technical reviewers.
-- **Verification:** `rg -n '\$55|fully offline|ECS Fargate task \(2 vCPU / 8 GB' README.md docs`, `pnpm fmt:check`, link checks, both public smoke paths, and a fresh AWS cost inventory. Acceptance requires a measured lite base ≤$35/month projection, total ≤$40 with one standard proof run, and no standard billable resources left after teardown.
+- **Verification:** `rg -n '\$55|fully offline|ECS Fargate task \(2 vCPU / 8 GB' README.md docs`, `pnpm fmt:check`, link checks, cold/warm public smoke paths, one observed lease stop, and a fresh AWS cost inventory. Acceptance requires a measured core stopped-host floor ≤$6.05/month, full idle base ≤$8, a 30-hour lite projection ≤$10, total ≤$15 with one standard proof run, and no standard billable resources left after teardown.
 
 ## Worktree & Concurrency
 
@@ -266,18 +279,18 @@ Completion requires all of the following evidence from the same reviewed Git SHA
 
 1. `pnpm typecheck`, `pnpm -r test`, `pnpm build`, and `pnpm fmt:check` exit 0.
 2. Both Terraform roots pass `fmt -check` and `validate`; lite has no unexpected plan after deployment.
-3. Lite direct origin and both edge URLs pass the complete planted-lead smoke.
+3. From stopped, lite wakes to all-five-app health within 180 seconds, passes the complete planted-lead smoke at the direct origin and both edge URLs, preserves PostgreSQL state, and stops within five minutes of final lease expiry.
 4. Hosted inference passes the three-run accuracy/stability/latency/cost gate.
 5. A fresh golden-state restore completes under 15 minutes and then passes smoke.
 6. A standard proof run passes smoke and offline eval, produces a sanitized receipt, and ends with verified teardown.
-7. AWS inventory shows only lite's intended EC2/EBS/EIP/ECR/SSM/S3/CloudWatch resources; standard ECS/RDS/ALB resources are absent after approval and teardown.
-8. The projected lite base is ≤$35/month and the one-proof-run monthly total is ≤$40 before model calls.
+7. AWS inventory shows only lite's intended stopped EC2/EBS/EIP, API Gateway/Lambda/Scheduler, ECR/SSM/S3/CloudWatch resources; standard ECS/RDS/ALB resources are absent after approval and teardown.
+8. The core stopped-host floor is ≤$6.05/month, full idle base is ≤$8, the 30-running-hour projection is ≤$10, and the one-proof-run monthly total is ≤$15 before model calls.
 9. Unrelated demos still work after the edge change.
 10. README/docs accurately label every surface and link to the latest receipts.
 
 ## Idempotence and Recovery
 
-Terraform applies, image pushes, seeds, backup uploads, and receipt capture must be repeatable. Lite deployment uses immutable image digests in Compose after the first successful push; `latest` may exist for operator convenience but is not the deployed identity. Seed operations remain idempotent by their existing keys.
+Terraform applies, image pushes, seeds, wake calls, lease renewals, backup uploads, and receipt capture must be repeatable. Lite deployment uses immutable image digests in Compose after the first successful push; `latest` may exist for operator convenience but is not the deployed identity. Wake against pending/running state returns current status instead of launching duplicate work. Lease renewal updates one named stop schedule rather than accumulating schedules. Seed operations remain idempotent by their existing keys.
 
 If U1 cannot make standard green, do not destroy it or claim proof; record the exact service event/log and continue only with non-destructive lite construction. If U2 lacks funded hosted credentials, build and validate lite infrastructure but do not route public submissions to it. If lite deployment fails, the shared demo route remains unchanged. If edge cutover fails during the rollback window, restore `INBOUND_ORIGIN` to the standard origin and redeploy the Pages project. After standard teardown, recovery is replacement lite infrastructure plus the latest verified golden-state package.
 
@@ -291,6 +304,9 @@ Before destructive standard teardown, save the sanitized receipt, verify the gol
 - `QUALIFY_LLM_MODEL`: pinned hosted snapshot in lite, `qwen3:4b` in standard.
 - `WORKSPACE_PUBLIC_PREFIX`: remains `/inbound` in both profiles.
 - `INBOUND_ORIGIN`: Cloudflare Pages environment value selecting the current AWS origin; never committed.
+- `INBOUND_LIFECYCLE_URL`: Cloudflare Pages server environment value for the API Gateway status/wake routes; never sent to the browser.
+- `INBOUND_WAKE_HMAC_SECRET`: matching Cloudflare/AWS secret used only for timestamped server-to-server activation signatures; never committed or exposed to clients.
+- Lite lease: one named 60-minute EventBridge Scheduler stop action, renewed idempotently by valid activation.
 - `scripts/smoke.sh "$BASE_URL"`: single outcome contract for local, lite, and standard.
 - `scripts/backup-golden-state.sh` / `scripts/restore-golden-state.sh`: S3 package contract with a validated manifest.
 - Caddy 2: terminates origin HTTPS and proxies `/inbound*` to app port 8080.
@@ -300,6 +316,9 @@ Before destructive standard teardown, save the sanitized receipt, verify the gol
 ## Artifacts and Notes
 
 - Origin ideation: `docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md`
+- AWS EC2 stop/start persistence and billing: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/how-ec2-instance-stop-start-works.html>
+- AWS RDS seven-day stop limit: <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_StopInstance.html>
+- AWS Aurora Serverless v2 zero-ACU auto-pause alternative: <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html>
 - Existing architecture: `docs/architecture.md`
 - Existing composition/deploy evidence: `docs/receipts.md`
 - Standard baseline receipt: `docs/receipts/aws-standard-baseline.md`
@@ -310,9 +329,8 @@ Before destructive standard teardown, save the sanitized receipt, verify the gol
 
 ## Deferred / Out of Scope
 
-- Public visitor-triggered wake-up or provisioning.
 - Static replay as a substitute for the live workflow.
-- Lambda, Aurora Serverless, App Runner, Kubernetes, or a multi-host HA lite topology.
+- Rewriting the application runtime onto Lambda, Aurora Serverless, App Runner, Kubernetes, or a multi-host HA lite topology. The narrowly scoped wake Lambda is in scope.
 - Automatic scheduled standard proof runs; manual proof is deliberate until cost and cleanup behavior are proven.
 - Slack approval sandbox wiring.
 - t4g.small as the initial live size; it is evidence-gated U4a only.
@@ -320,8 +338,9 @@ Before destructive standard teardown, save the sanitized receipt, verify the gol
 
 ## Open Questions
 
-No architecture question remains blocking. Execution still has three operator gates with predetermined fallback behavior: obtain a funded hosted-model credential or stop before cutover; create the two origin DNS records manually if the Cloudflare token remains insufficient; and approve the public edge deployment plus later standard teardown at the moment each external/destructive action is ready.
+No architecture question remains blocking. Execution still has three operator gates with predetermined fallback behavior: obtain a funded hosted-model credential or stop before cutover; create the two origin DNS records manually if the Cloudflare token remains insufficient; and approve the public edge deployment plus later standard teardown at the moment each external/destructive action is ready. Wake-controller construction and direct-origin proof do not require those public/destructive approvals.
 
 ## Revision History
 
 - 2026-07-17: Initial full plan synthesized from the six ranked ideation survivors, live AWS state, repository deployment receipts, relevant solution notes, current AWS/OpenAI pricing, and shared demo-routing ownership.
+- 2026-07-17: Pivoted lite from always-on to visitor-activated hibernation; updated `td-f93367`, cost targets, wake/lease security contract, cold-start acceptance, edge shell, recovery flow, and FinOps evidence.
