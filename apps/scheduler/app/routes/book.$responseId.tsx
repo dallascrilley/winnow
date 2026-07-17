@@ -55,6 +55,7 @@ export default function BookPage() {
   const [route, setRoute] = useState<RouteInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [slotsLoaded, setSlotsLoaded] = useState(false);
   const [selected, setSelected] = useState<Slot | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -72,28 +73,40 @@ export default function BookPage() {
     if (!responseId) return;
     const base = apiBase();
     void (async () => {
-      const res = await fetch(
-        `${base}/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
-        { cache: "no-store" },
-      );
-      const data = await res.json();
-      // no_route / cancelled links have no bookable surface — don't strand the
-      // page on "Loading availability…".
-      if (
-        !data.found ||
-        (data.route.status !== "routed" && data.route.status !== "booked")
-      ) {
-        setNotFound(true);
-        return;
+      try {
+        const res = await fetch(
+          `${base}/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
+          { cache: "no-store" },
+        );
+        const data = await res.json();
+        // no_route / cancelled links have no bookable surface — don't strand the
+        // page on "Loading availability…".
+        if (
+          !res.ok ||
+          !data.found ||
+          !data.route ||
+          (data.route.status !== "routed" && data.route.status !== "booked")
+        ) {
+          setNotFound(true);
+          return;
+        }
+        setRoute(data.route);
+        if (data.route.status !== "routed") return;
+        const slotsRes = await fetch(
+          `${base}/_agent-native/actions/route-slots?responseId=${encodeURIComponent(responseId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&timezone=${encodeURIComponent(TZ)}`,
+          { cache: "no-store" },
+        );
+        const slotsData = await slotsRes.json();
+        setSlots(slotsData.slots ?? []);
+        setSlotsLoaded(true);
+      } catch {
+        // End the loading state on any failure; with no route loaded the
+        // message below renders, otherwise the no-availability copy shows.
+        setSlotsLoaded(true);
+        setError(
+          "Couldn't load this booking link — check your connection and refresh.",
+        );
       }
-      setRoute(data.route);
-      if (data.route.status !== "routed") return;
-      const slotsRes = await fetch(
-        `${base}/_agent-native/actions/route-slots?responseId=${encodeURIComponent(responseId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&timezone=${encodeURIComponent(TZ)}`,
-        { cache: "no-store" },
-      );
-      const slotsData = await slotsRes.json();
-      setSlots(slotsData.slots ?? []);
     })();
   }, [responseId, range]);
 
@@ -143,6 +156,8 @@ export default function BookPage() {
         </h1>
       )}
 
+      {error && !route && <p className="mt-4 text-sm text-red-400">{error}</p>}
+
       {route && !booked && (
         <>
           <h1 className="mt-2 text-2xl font-semibold">
@@ -161,7 +176,11 @@ export default function BookPage() {
             <>
               <section className="mt-8 space-y-6">
                 {byDay.length === 0 && (
-                  <p className="text-sm text-zinc-500">Loading availability…</p>
+                  <p className="text-sm text-zinc-500">
+                    {slotsLoaded
+                      ? "No availability in the next 7 days — we'll follow up by email."
+                      : "Loading availability…"}
+                  </p>
                 )}
                 {byDay.map(([day, daySlots]) => (
                   <div key={day}>
