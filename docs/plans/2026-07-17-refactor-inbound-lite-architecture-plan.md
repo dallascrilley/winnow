@@ -59,6 +59,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-17 17:15Z) Selected the dual-profile architecture and resolved EC2 versus Lightsail, public routing, inference, persistence, and proof-run decisions.
 - [x] (2026-07-17 17:46Z) Reframed lite as an on-demand hibernating origin. Live AWS rates make the fixed idle floor about $6.05/month and a 30-running-hour month about $7.06 before model calls and low-volume usage charges.
 - [x] (2026-07-17 20:25Z) U1. Recovered and proved the existing standard profile at Git `126b610`: immutable app and Ollama digests recorded, production seed exited 0, ECS/ALB became healthy, all five apps passed health, and the planted lead reached `routed` with funnel movement. Functional proof used the ALB HTTP origin; standard-origin DNS/ACM remains a separate operator gate.
+- [x] (2026-07-17 20:35Z) Completed the U2 credential/probe gate without exposing secret values. Two candidates are invalid and the authenticated candidate returns `insufficient_quota`; hosted eval remains blocked and U7 cannot cut over. Hardened provider errors and recorded the blocker in `docs/receipts/hosted-inference.md`.
 - [ ] U2. Qualify hosted inference for the live profile.
 - [ ] U3. Make the runtime portable across RDS and local PostgreSQL.
 - [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
@@ -92,6 +93,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - The stable public route already has a cross-repo edge ownership chain: `../job-search/demo-lab` owns `demos.dallascrilley.com`, and `../job-search/edge/demo-router` maps `dallascrilley.com/demos/*` into it. Inbound needs a path-scoped adapter in both surfaces.
 - RDS requires `sslmode=require`, but the lite Postgres container does not provide TLS. `scripts/prod-start.mjs` and `scripts/prod-seed.mjs` currently hardcode RDS behavior and therefore need an explicit database transport contract.
 - The last OpenAI credential probe reached the API but returned `insufficient_quota`. Hosted inference is a real cutover gate, not a documentation-only environment switch.
+- The full credential discovery gate found three candidates: two return `invalid_api_key`, while the remaining 1Password candidate authenticates but returns `insufficient_quota`. The hosted eval cannot start until a funded credential exists; the probe also revealed and closed an upstream-error-body leakage path in `callOpenAI`.
 - The Inbound repository has no `.todos/` database. Existing career-ops task `td-48285e` still owns the unfinished U8 standard deployment; this plan does not initialize or duplicate tracker state.
 - Stopping an EBS-backed EC2 instance removes compute charges while preserving EBS data, its network interface, IPv6 addresses, and any Elastic IP. The 30 GB gp3 volume and public IPv4 still cost about $6.05/month, but 30 monthly running hours add only $1.01 of compute.
 - Provisioned RDS is not a durable hibernation primitive: it automatically restarts after seven stopped days. Aurora Serverless v2 can auto-pause at 0 ACUs, but adopting it would add an Aurora migration and resume behavior to a workload that can already keep app and PostgreSQL state together on the stopped EC2 host.
@@ -349,3 +351,4 @@ No architecture question remains blocking. Execution still has three operator ga
 - 2026-07-17: Initial full plan synthesized from the six ranked ideation survivors, live AWS state, repository deployment receipts, relevant solution notes, current AWS/OpenAI pricing, and shared demo-routing ownership.
 - 2026-07-17: Pivoted lite from always-on to visitor-activated hibernation; updated `td-f93367`, cost targets, wake/lease security contract, cold-start acceptance, edge shell, recovery flow, and FinOps evidence.
 - 2026-07-17: Completed U1 standard recovery at Git `126b610`; added the dated baseline receipt, replaced the stale missing-digest diagnosis with observed root causes, and recorded the ECS scheduler stall plus green planted-lead smoke.
+- 2026-07-17: Ran the U2 credential/probe gate, recorded the quota blocker, and hardened hosted-provider error redaction plus request timeout before any live eval.

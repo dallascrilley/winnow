@@ -5,6 +5,7 @@ import {
   AUTO_THRESHOLD,
   bandForScore,
   buildPrompt,
+  callOpenAI,
   parseScore,
   proposalFor,
   REVIEW_THRESHOLD,
@@ -168,5 +169,66 @@ describe("scoreIcp", () => {
     const body = JSON.parse(String(init.body));
     expect(body.think).toBe(false);
     expect(body.options).toEqual({ temperature: 0, num_predict: 256 });
+  });
+});
+
+describe("callOpenAI", () => {
+  it("fails clearly when the API key is missing", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+
+    await expect(callOpenAI("system", "user")).rejects.toThrow(
+      "OPENAI_API_KEY is not set",
+    );
+  });
+
+  it("redacts upstream error bodies", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-secret-that-must-not-escape");
+    vi.stubEnv("QUALIFY_LLM_MODEL", "gpt-5-mini-2025-08-07");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: {
+            message: "Incorrect API key: sk-secret-that-must-not-escape",
+            type: "invalid_request_error",
+            code: "invalid_api_key",
+          },
+        }),
+      }),
+    );
+
+    const error = await callOpenAI("system", "user").catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("OpenAI 401: invalid_api_key");
+    expect((error as Error).message).not.toContain("sk-secret");
+    expect((error as Error).message).not.toContain("Incorrect API key");
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("does not trust a token-shaped upstream error code", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-synthetic-test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => ({
+          error: { code: "sk-secret-from-proxy", type: "proxy_error" },
+        }),
+      }),
+    );
+
+    const error = await callOpenAI("system", "user").catch(
+      (caught: unknown) => caught,
+    );
+
+    expect((error as Error).message).toBe("OpenAI 502: request_failed");
+    expect((error as Error).message).not.toContain("sk-secret");
   });
 });
