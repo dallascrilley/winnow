@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "demo_hostname" {
   type    = string
-  default = "demos.dallascrilley.com"
+  default = "inbound-standard-origin.dallascrilley.com"
 }
 
 variable "public_prefix" {
