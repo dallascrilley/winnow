@@ -119,31 +119,35 @@ await qsql`
 await qsql.end();
 
 // Emit the eval_completed event so the funnel page's accuracy panel lights up.
-// Runs inside the container — hit the local gateway, not the public URL.
-await fetch("http://127.0.0.1:8080/analytics/track", {
-  method: "POST",
-  headers: {
-    "content-type": "application/json",
-    "x-agent-native-analytics-key": PUBLIC_KEY,
-  },
-  body: JSON.stringify({
-    events: [
-      {
-        event: "eval_completed",
-        anonymousId: evalRow.id,
-        properties: {
-          app: "qualify",
-          accuracy: evalRow.accuracy,
-          caseCount: evalRow.caseCount,
-          passCount: evalRow.passCount,
-          model: evalRow.model,
-          promptHash: evalRow.promptHash,
+// In a one-off seed task the gateway isn't running (this process replaces
+// prod-start), so SEED_TRACK_URL points at the service through the ALB.
+await fetch(
+  process.env.SEED_TRACK_URL ?? "http://127.0.0.1:8080/analytics/track",
+  {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-agent-native-analytics-key": PUBLIC_KEY,
+    },
+    body: JSON.stringify({
+      events: [
+        {
+          event: "eval_completed",
+          anonymousId: evalRow.id,
+          properties: {
+            app: "qualify",
+            accuracy: evalRow.accuracy,
+            caseCount: evalRow.caseCount,
+            passCount: evalRow.passCount,
+            model: evalRow.model,
+            promptHash: evalRow.promptHash,
+          },
+          timestamp: evalRow.createdAt,
         },
-        timestamp: evalRow.createdAt,
-      },
-    ],
-  }),
-}).then(async (r) => {
+      ],
+    }),
+  },
+).then(async (r) => {
   if (!r.ok) throw new Error(`eval_completed emit failed: ${r.status}`);
   console.log("eval_completed emitted");
 });
