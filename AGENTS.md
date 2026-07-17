@@ -1,3 +1,33 @@
+---
+ijfw_version: 1.3.2
+ijfw_schema: 1
+type: software
+primary_type: software
+secondary_types: []
+confidence: 0.905
+detected_at: 2026-07-17T15:05:08.697Z
+signals:
+  - kind: manifest
+    weight: 0.9
+    manifests: [package.json, package.json, package.json, package.json, package.json, package.json]
+  - kind: file_extension_ratio
+    weight: 0.7
+    domain: software
+    ratio: 0.964
+    count: 1222
+  - kind: filename_pattern
+    weight: 0.2
+    domain: content
+    name: seo-blog-pages.ts
+  - kind: filename_pattern
+    weight: 0.2
+    domain: content
+    name: seo-page-keywords.ts
+  - kind: filename_pattern
+    weight: 0.2
+    domain: content
+    name: seo-top-keywords.ts
+---
 # Inbound Workspace Instructions
 
 These instructions apply at the workspace root. App-specific behavior belongs
@@ -207,3 +237,11 @@ When asked to repair workspace org or A2A configuration:
 5. Never use `DROP`, `TRUNCATE`, destructive `ALTER`, or an unscoped
    `DELETE`. Do not rotate `A2A_SECRET` without updating every app that trusts
    it.
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-AGENTS-START -->
+No project agents yet. Run `ijfw team` to set them up.
+<!-- IJFW-AGENTS-END -->
