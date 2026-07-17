@@ -182,7 +182,7 @@ resource "aws_ecs_service" "app" {
   }
 
   deployment_minimum_healthy_percent = 0
-  deployment_maximum_percent         = 100
+  deployment_maximum_percent         = 200
 
   depends_on = [aws_lb_listener.http]
 }

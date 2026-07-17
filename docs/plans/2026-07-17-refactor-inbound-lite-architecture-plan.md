@@ -62,7 +62,8 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-17 20:35Z) Completed the U2 credential/probe gate without exposing secret values. Two candidates are invalid and the authenticated candidate returns `insufficient_quota`; hosted eval remains blocked and U7 cannot cut over. Hardened provider errors and recorded the blocker in `docs/receipts/hosted-inference.md`.
 - [ ] U2. Qualify hosted inference for the live profile.
 - [x] (2026-07-17 20:50Z) Completed the U3 portability implementation: one tested URL builder defaults to `sslmode=require` and permits `disable` only explicitly; a fresh PostgreSQL 16 container accepted the lite URL; standard image inputs are immutable and stack-owned; bootstrap is explicit with ECS at zero; and app-only build/push returns an ECR content ref. Workspace typecheck, 1,045 tests, and all five app builds pass.
-- [ ] U3. Make the runtime portable across RDS and local PostgreSQL.
+- [x] (2026-07-17 22:25Z) Proved U3 on the live standard profile at task definition `inbound-demo:3`: exact app and Ollama digests, explicit `DATABASE_SSLMODE=require`, zero Terraform drift, idempotent production seed with both containers exiting 0, healthy ALB target, all five app health checks, and planted-lead smoke reaching `routed` with funnel submissions at 3. Increased ECS deployment headroom to 200% after the previous 100% setting reproduced a zero-task placement stall.
+- [x] U3. Make the runtime portable across RDS and local PostgreSQL.
 - [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
 - [ ] U5. Make synthetic state portable and recovery-tested.
 - [ ] U6. Turn the standard profile into a bounded proof/interview mode.
