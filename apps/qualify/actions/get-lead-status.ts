@@ -39,6 +39,7 @@ export default defineAction({
     return {
       found: true as const,
       lead: {
+        id: lead.id,
         status: lead.status,
         name: lead.name,
         email: lead.email,

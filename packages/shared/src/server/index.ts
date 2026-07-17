@@ -17,3 +17,4 @@ export function createWorkspaceAgentChatPlugin(
 export const defaultAgentChatPlugin: NitroPluginDef =
   createWorkspaceAgentChatPlugin();
 export { defaultAuthPlugin };
+export { resolveA2ACaller, siblingActionFetch } from "./a2a.js";

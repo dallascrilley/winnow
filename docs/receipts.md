@@ -98,3 +98,15 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [cmd] `putSetting('agent-engine', {engine:'ai-sdk:ollama', config:{model:'qwen3:4b'}})` via one-off tsx — the qualify agent loop runs locally (no hosted key needed). `AGENT_ENGINE` env also honored (resolution #4) for other apps.
 - [ops] Stray dev servers on old ports poisoned a debug cycle — sweep `lsof -ti :8080,8100-8109 | xargs kill` before gateway restarts.
 - [cmd] E2E PROOF: form submit (jordan@meridianops.com) → auto-approved 0.95 with reasoning; anonymous status action + `/qualify/status/<responseId>` both 200 unauthenticated.
+
+## 2026-07-17 — U4: routing + booking (scheduler app)
+
+- [hand] `server/lib/routing-evaluator.ts` — pure consumer-side evaluator (the package deliberately ships persistence only): AND conditions, first match wins, fallback. 7/7 unit tests.
+- [hand] `server/seed/{team,run}.ts` — 4 AEs with staggered America/Chicago weekday windows (owned by the AE email — the availability engine resolves default schedules by owner), 2 round-robin event types, routing form `rf_inbound_router` (enterprise→deep-dive, default-fit→discovery). Idempotent.
+- [hand] `lead_routes` table (formResponseId PK = capability key, event type, host, status, booking uid) — migration v2 via new `scripts/wrap-migrations.mjs` (journal-ordered, strips NNNN_ prefix for stable migration names — the runner records applied migrations BY NAME).
+- [bug] Migration names must stay stable: renaming v1 ("init-scheduling" → "0000_init-scheduling") made the runner re-apply it and fail on existing tables, silently blocking v2.
+- [hand] Cross-app substrate moved to `packages/shared/src/server/a2a.ts`: `resolveA2ACaller` (actionRouteAuth) + `siblingActionFetch` (sign + fetch). Both qualify and scheduler plugins wire it. Shared pkg needs `h3: catalog:` dep + `pnpm build` (CLI resolves dist, vite resolves src).
+- [hand] scheduler actions: `route-lead` (idempotent; verify lead is approved → evaluate → round-robin → persist → tell qualify), anonymous `get-route`/`route-slots`/`book-lead` (publicPaths + requiresAuth:false). `createBooking` takes hostEmail → round-robin decision honored, never re-rolled.
+- [hand] qualify `process-lead` auto-chain: after propose, band=auto → signed call to scheduler `route-lead`. chain-error audit entries make cross-app failures visible on the status page (observed live during the migration break).
+- [bug] Schedules seeded with ownerEmail=dev@local.test → `getAvailableSlots` found no host schedule (empty slot grid). Fixed: AE-owned schedules.
+- [cmd] E2E PROOF: submit (riley@meridianops.com) → 0.90 auto-approved → routed (discovery, host aria, rule_default_fit) → anonymous slots (13:00Z…) → booked uid gRWd9LwpYAWb → qualify status booked. book-lead idempotent on replay.

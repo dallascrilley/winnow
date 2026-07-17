@@ -1,4 +1,5 @@
 import { defineAction } from "@agent-native/core/action";
+import { siblingActionFetch } from "@inbound/shared/server";
 import { z } from "zod";
 
 import {
@@ -17,7 +18,7 @@ import { appendAudit } from "../server/lib/leads.js";
  */
 export default defineAction({
   description:
-    "Atomic intake for a form submission: creates the lead now, then runs the full qualification chain (enrich → score → propose) in the background. Idempotent by formResponseId.",
+    "Atomic intake for a form submission: creates the lead now, then runs the full qualification chain (enrich → score → propose → auto-route) in the background. Idempotent by formResponseId.",
   schema: z.object({
     formResponseId: z.string().min(1),
     email: z.string().email(),
@@ -28,14 +29,21 @@ export default defineAction({
   http: { method: "POST" },
   run: async (args) => {
     const { leadId } = await enrichLeadStep(args);
-    const leadId_ = leadId;
 
     void (async () => {
       try {
-        await scoreLeadStep(leadId_);
-        await proposeRoutingStep(leadId_);
+        await scoreLeadStep(leadId);
+        const { proposal } = await proposeRoutingStep(leadId);
+        if (proposal.band === "auto") {
+          // Auto-approved leads route immediately; review-band leads wait
+          // for the U5 approval gate.
+          await siblingActionFetch("scheduler", "route-lead", {
+            method: "POST",
+            body: { formResponseId: args.formResponseId },
+          });
+        }
       } catch (error) {
-        await appendAudit(leadId_, {
+        await appendAudit(leadId, {
           actor: "system",
           event: "chain-error",
           detail: error instanceof Error ? error.message : String(error),

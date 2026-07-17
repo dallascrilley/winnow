@@ -11,7 +11,8 @@
     "typecheck": "agent-native typecheck",
     "action": "agent-native action",
     "script": "agent-native script",
-    "test": "vitest --run --passWithNoTests"
+    "test": "vitest --run --passWithNoTests",
+    "seed": "tsx server/seed/run.ts"
   },
   "dependencies": {
     "@agent-native/core": "latest",

@@ -231,6 +231,14 @@ export default function LeadStatusPage() {
             : "routing you to a specialist now…"}
           {lead.proposal &&
             ` Next: ${lead.proposal.eventTypeSlug === "deep-dive" ? "technical deep dive (45 min)" : "discovery call (30 min)"}.`}
+          {lead.status === "routed" && responseId && (
+            <a
+              href={`/scheduler/book/${encodeURIComponent(responseId)}`}
+              className="mt-3 inline-block rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400"
+            >
+              Pick a time →
+            </a>
+          )}
         </section>
       )}
       {lead?.status === "pending_approval" && (

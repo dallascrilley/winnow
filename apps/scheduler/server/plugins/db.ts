@@ -7,8 +7,11 @@ import { getRequestUserEmail } from "@agent-native/core/server";
 
 import { schema } from "../db/index.js";
 // Generated from the drizzle-kit .sql output (see migrations-sql.ts header).
-import { initPostgres, initSqlite } from "../db/migrations-sql.js";
-import { initSchedulingContext, isSchedulingContextSet } from "../scheduling-context.js";
+import { migrationsSql } from "../db/migrations-sql.js";
+import {
+  initSchedulingContext,
+  isSchedulingContextSet,
+} from "../scheduling-context.js";
 
 function isDrizzleTable(value: unknown): value is object {
   return (
@@ -23,13 +26,11 @@ function isDrizzleTable(value: unknown): value is object {
 const schemaTables = Object.values(schema).filter(isDrizzleTable);
 
 const runSchedulerMigrations = runMigrations(
-  [
-    {
-      version: 1,
-      name: "init-scheduling",
-      sql: { sqlite: initSqlite, postgres: initPostgres },
-    },
-  ],
+  migrationsSql.map((m) => ({
+    version: m.version,
+    name: m.name,
+    sql: { sqlite: m.sqlite, postgres: m.postgres },
+  })),
   { table: "scheduler_migrations" },
 );
 
