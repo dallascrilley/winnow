@@ -92,14 +92,22 @@ function Bars({
 export default function PublicFunnelPage() {
   const [data, setData] = useState<FunnelPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [base, setBase] = useState("");
 
   useEffect(() => {
+    // Derive the mount prefix ("" direct-dev, "/analytics" dev-gateway,
+    // "/inbound/analytics" prod) so fetches work behind the gateway.
+    const b = window.location.pathname.replace(/\/funnel\/?$/, "");
+    setBase(b);
     let cancelled = false;
     const tick = async () => {
       try {
-        const res = await fetch("/_agent-native/actions/get-public-funnel", {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `${b}/_agent-native/actions/get-public-funnel`,
+          {
+            cache: "no-store",
+          },
+        );
         if (!res.ok) throw new Error(`status ${res.status}`);
         const json = (await res.json()) as FunnelPayload;
         if (!cancelled) setData(json);
@@ -128,6 +136,10 @@ export default function PublicFunnelPage() {
     label: f.stage.replace(/^\d /, ""),
     n: f.n,
   }));
+
+  const formsBase = base.endsWith("/analytics")
+    ? `${base.slice(0, -"/analytics".length)}/forms`
+    : "/forms";
 
   return (
     <div className="mx-auto min-h-screen max-w-3xl bg-zinc-950 px-6 py-12 text-zinc-100">
@@ -226,7 +238,7 @@ export default function PublicFunnelPage() {
         Aggregates only — no lead identifiers leave the server. Demo with
         synthetic data.{" "}
         <a
-          href="/forms/f/talk-to-sales"
+          href={`${formsBase}/f/talk-to-sales`}
           className="text-zinc-400 underline underline-offset-2"
         >
           Submit a lead →

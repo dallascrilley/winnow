@@ -1,35 +1,12 @@
 import { readBody } from "@agent-native/core/server";
-import {
-  defineEventHandler,
-  getHeader,
-  setResponseHeader,
-  setResponseStatus,
-} from "h3";
+import { defineEventHandler, getHeader, setResponseStatus } from "h3";
 
 import {
   parseAnalyticsTrackPayload,
   recordAnalyticsEvents,
 } from "../lib/first-party-analytics.js";
 
-function setCors(event: any): void {
-  setResponseHeader(event, "Access-Control-Allow-Origin", "*");
-  setResponseHeader(event, "Access-Control-Allow-Methods", "POST, OPTIONS");
-  setResponseHeader(
-    event,
-    "Access-Control-Allow-Headers",
-    "content-type, x-agent-native-analytics-key",
-  );
-  setResponseHeader(event, "Access-Control-Max-Age", "86400");
-}
-
-export const handleAnalyticsTrackOptions = defineEventHandler((event) => {
-  setCors(event);
-  setResponseStatus(event, 204);
-  return "";
-});
-
 export const handleAnalyticsTrack = defineEventHandler(async (event) => {
-  setCors(event);
   try {
     const headerKey = getHeader(event, "x-agent-native-analytics-key");
     let body = await readBody(event);

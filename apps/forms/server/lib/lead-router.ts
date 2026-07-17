@@ -73,6 +73,7 @@ export async function dispatchLeadQualification(
         companySize: text(submission.data.company_size),
         message: text(submission.data.message),
       }),
+      signal: AbortSignal.timeout(10_000),
     },
   );
 

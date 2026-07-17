@@ -105,6 +105,54 @@ describe("public form SSR", () => {
     );
   });
 
+  it("prefixes browser-facing URLs with WORKSPACE_PUBLIC_PREFIX when set", async () => {
+    const rows = [
+      {
+        id: "form-prefix-123",
+        slug: "prefix-form",
+        title: "Prefixed",
+        description: null,
+        ownerEmail: "owner@example.test",
+        updatedAt: "2026-07-14T12:00:00.000Z",
+        fields: "[]",
+        settings: "{}",
+        status: "published",
+        deletedAt: null,
+      },
+    ];
+    mockGetDb.mockReturnValue(createDbWithRows(rows));
+
+    const dev = await renderPublicFormHtml(
+      "https://forms.example.test/f/prefix-form",
+    );
+    expect(dev.html).toContain('fetch("/api/submit/" + FORM_ID');
+    expect(dev.html).toContain('href="/favicon.svg"');
+    expect(dev.html).toContain(
+      'var PUBLIC_FORM_API = "/api/forms/public/prefix-form";',
+    );
+
+    mockGetAppBasePath.mockReturnValue("/forms");
+    process.env.WORKSPACE_PUBLIC_PREFIX = "/inbound";
+    try {
+      const prod = await renderPublicFormHtml(
+        "https://forms.example.test/forms/f/prefix-form",
+      );
+      expect(prod.html).toContain(
+        'fetch("/inbound/forms/api/submit/" + FORM_ID',
+      );
+      expect(prod.html).toContain('href="/inbound/forms/favicon.svg"');
+      expect(prod.html).toContain(
+        "/inbound/forms/api/forms/og/prefix-form/og.png?v=2026-07-14T12%3A00%3A00.000Z",
+      );
+      expect(prod.html).toContain(
+        'var PUBLIC_FORM_API = "/inbound/forms/api/forms/public/prefix-form";',
+      );
+    } finally {
+      delete process.env.WORKSPACE_PUBLIC_PREFIX;
+      mockGetAppBasePath.mockReturnValue("");
+    }
+  });
+
   it("refreshes cached forms after invalidating old and new lookup keys", async () => {
     const rows = [
       {

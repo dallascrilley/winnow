@@ -343,9 +343,16 @@ function renderFormPage(
   const fields: FormField[] = form.fields || [];
   const turnstileSiteKey = process.env.VITE_TURNSTILE_SITE_KEY || "";
   const appBasePath = getAppBasePath();
-  const submitPath = `${appBasePath}/api/submit/`;
-  const faviconPath = `${appBasePath}/favicon.svg`;
-  const ogImagePath = `${appBasePath}/api/forms/og/${encodeURIComponent(
+  // Behind the prod gateway the app only sees the stripped path, so
+  // browser-facing URLs need the external prefix (e.g. /inbound) added back.
+  const externalPrefix = (process.env.WORKSPACE_PUBLIC_PREFIX ?? "").replace(
+    /\/$/,
+    "",
+  );
+  const publicBase = `${externalPrefix}${appBasePath}`;
+  const submitPath = `${publicBase}/api/submit/`;
+  const faviconPath = `${publicBase}/favicon.svg`;
+  const ogImagePath = `${publicBase}/api/forms/og/${encodeURIComponent(
     form.slug || form.id,
   )}/og.png${form.updatedAt ? `?v=${encodeURIComponent(form.updatedAt)}` : ""}`;
   const ogImageUrl = origin
@@ -431,7 +438,7 @@ function renderFormPage(
 (function(){
   var FORM_ID = ${JSON.stringify(form.id)};
   var FORM_VERSION = ${JSON.stringify(form.updatedAt || "")};
-  var PUBLIC_FORM_API = ${JSON.stringify(`${appBasePath}/api/forms/public/${encodeURIComponent(form.slug || form.id)}`)};
+  var PUBLIC_FORM_API = ${JSON.stringify(`${publicBase}/api/forms/public/${encodeURIComponent(form.slug || form.id)}`)};
   var REDIRECT = ${JSON.stringify(safeRedirectUrl(settings.redirectUrl))};
   var TURNSTILE_KEY = ${JSON.stringify(turnstileSiteKey)};
   var FIELDS = ${JSON.stringify(fields.map((f) => ({ id: f.id, type: f.type, required: f.required, validation: f.validation, label: f.label, conditional: f.conditional })))};
