@@ -1,137 +1,141 @@
-# Inbound — Agent-Native Workspace
+# Inbound — the agent-native lead router
 
-A monorepo hosting multiple agent-native apps that all inherit from a single
-private **shared** package. The framework provides the defaults; this package
-is only for code, instructions, and policies that are genuinely shared by more
-than one app.
+A public, no-login demo of an AI-run inbound pipeline: a form submission is
+enriched, scored for ICP fit by an LLM **with visible reasoning**, parked for
+human review when the score is borderline, round-robin routed to the right
+AE's calendar, booked, and counted — every stage live on a public dashboard.
 
-## Layout
+**Live demo:** <https://demos.dallascrilley.com/inbound>
 
-```
-inbound/
-├── packages/
-│   └── shared/               # @inbound/shared — optional shared code
-│       ├── src/server/       # Add plugin overrides only when needed
-│       ├── src/client/       # Add shared React code only when needed
-│       └── AGENTS.md         # Workspace-wide agent instructions
-└── apps/
-    └── example/              # App-specific routes, actions, and state
-```
+Built by Dallas Crilley as a portfolio piece: ten years of owning lead-to-cash
+operations, rebuilt as the agent-native version. Composed from the
+[Agent Native](https://github.com/BuilderIO/agent-native) framework's
+templates and packages — the full composition story, with every fork delta and
+discovery, is in [`docs/receipts.md`](docs/receipts.md).
 
-## Three-layer inheritance
+## The 2-minute demo
 
-Every app in this workspace inherits cross-cutting behavior automatically:
+1. **Submit the form** at
+   <https://demos.dallascrilley.com/inbound/forms/f/talk-to-sales> — use a
+   business email at a mid-market company with a real sentence about inbound
+   volume. (Everything is synthetic; nothing you type leaves the demo.)
+2. **Watch your qualification** on the status page you're redirected to. It
+   polls live: enrichment → the LLM's fit score **and its reasoning** → the
+   routing decision. Strong fits auto-route to an AE in about a minute.
+3. **Book the meeting** — high-fit leads get a scheduling link with real
+   availability from the routed AE's calendar (round-robin over four AEs).
+4. **Open the funnel** at
+   <https://demos.dallascrilley.com/inbound/analytics/funnel> — submissions,
+   stage conversion, tier/segment mix, median time-to-route, and the
+   qualifier's golden-set accuracy, all updating live. Your submission just
+   moved the numbers.
+5. **The human gate:** mid-band scores (0.4–0.79) don't route — they park in
+   a review queue. The status page shows the parked state and, once a human
+   approves or rejects, the audit timeline names the actor (`human`) and
+   channel. Borderline leads never silently book or silently die.
 
-1. **App local** (highest priority) — anything under `apps/<name>/server/plugins/`,
-   `apps/<name>/actions/`, `apps/<name>/.agents/skills/`, `apps/<name>/AGENTS.md`.
-2. **Workspace shared** (middle) — `packages/shared/src/server/`,
-   `packages/shared/src/client/`, `packages/shared/actions/`,
-   `packages/shared/.agents/skills/`, `packages/shared/AGENTS.md`.
-3. **Framework** (lowest) — `@agent-native/core` defaults.
+## What's inside (5 apps, 1 workspace)
 
-Apps don't need any configuration to opt in. Discovery happens via the
-`agent-native.workspaceCore` field in this root `package.json`, which names
-the shared package (`@inbound/shared`).
+| App | Role |
+| --- | --- |
+| `forms` | Intake — forked template; a post-insert hook hands each `talk-to-sales` response to qualify over a signed A2A call |
+| `qualify` | The brain — custom app: enrichment, LLM ICP scoring (structured JSON, deterministic decoding), band policy, HITL approval queue, golden eval suite |
+| `scheduler` | Routing + booking — forked calendar template composed with `@agent-native/scheduling`: consumer-side rule evaluator, round-robin over AE-owned availability, public booking page |
+| `analytics` | Funnel — forked analytics template; qualify emits stage events to its first-party track endpoint; public scoped read + public funnel page, full SQL dashboard for logged-in views |
+| `dispatch` | Approval delivery (Slack leg — deferred; see `docs/slack-wiring.md`) |
 
-The workspace root also links `.agents/skills` to the shared package so coding
-agents launched from the root can discover the same workspace-wide skills.
-Run `pnpm skills:update` (or
-`npx @agent-native/core@latest skills update scaffold --project`) after updating
-`@agent-native/core` to refresh framework-provided shared skills and repair
-Claude compatibility links.
+Cross-app calls use signed A2A JWTs against each app's action HTTP surface
+(`packages/shared/src/server/a2a.ts`) — the framework's event bus is
+in-process, so workspace siblings compose over HTTP. Environments: local dev
+(`pnpm dev` → `http://127.0.0.1:8080/<app>`) and AWS (below).
 
-Runtime-editable global resources live in Dispatch, not in `packages/shared`.
-Use Dispatch **Resources** for company context and guardrails that admins should
-change without a code deploy:
+## The AI engineering story
 
-- `AGENTS.md` or `instructions/<slug>.md` for instructions every app agent loads
-- `skills/<slug>/SKILL.md` for workspace skills
-- `context/<slug>.md` for personas, positioning, messaging, company facts, and brand guidelines
-- `agents/<slug>.md` for reusable custom agent profiles
+- **Direct-API agents, not framework lock-in.** Scoring is a plain system +
+  user prompt returning strict JSON, parsed and policy-banded in code. The
+  LangChain equivalent would be an `LLMChain` with an output parser — here
+  it's ~60 lines with full control of decoding (temperature pinned to 0: a
+  scorer must give the same answer to the same lead twice), the token-cost
+  ledger per lead, and a provider seam (local Ollama `qwen3:4b` by default —
+  the demo runs fully offline; `QUALIFY_LLM_PROVIDER=openai` flips to hosted
+  `gpt-5-mini`).
+- **Tool use as the application surface.** Every operation is a framework
+  *action* — the agent calls them as tools, the UI calls the same surface
+  over HTTP, and sibling apps call each other's actions with signed A2A
+  tokens. There is no second, hidden set of endpoints.
+- **Evals as a gate, not a garnish.** 24 golden cases (obvious-fit, mid-band,
+  poor-fit, adversarial: free-email, student, vendor pitch, gibberish) run
+  through the real enrich→score path. Runs are keyed by model + prompt hash
+  (ICP, system prompt, and rules all move the id), so every accuracy move is
+  attributable. The suite caught three real defects in one afternoon —
+  sampling nondeterminism, free-email over-promotion, and a vendor-pitch
+  blind spot: **70.8% → 75% → 87.5% → 95.8%**, each step a prompt/config
+  change with receipts. The current accuracy is public on the funnel page.
+- **Structured generation you can audit.** Every lead carries the model's
+  score, reasoning, model id, and cost, plus an append-only audit timeline
+  (system/agent/human actors) that renders publicly on the status page.
+- **Human-in-the-loop as policy.** The 0.4–0.79 band parks leads for a human;
+  approve → routed, reject → disqualified. The in-app queue proves the gate;
+  the Slack interactive version is fully specified in
+  [`docs/slack-wiring.md`](docs/slack-wiring.md) and only awaits a sandbox.
 
-Set those resources to **All apps** when every workspace app should receive
-them; use selected-app grants for app-specific packs.
+## Deploy (AWS, Terraform)
 
-Starter global resources:
-
-```text
-context/company.md              # company overview, ICP, products, canonical links
-context/brand.md                # brand voice, visual identity, spelling, terms to avoid
-context/messaging.md            # positioning, value props, proof points, objections
-instructions/guardrails.md      # compliance, escalation, and approval rules
-skills/company-voice/SKILL.md   # copywriting/review guidance for customer-facing work
-```
-
-## Getting started
-
-```bash
-pnpm install
-cp .env.example .env   # fill in DATABASE_URL, BETTER_AUTH_SECRET, and an LLM provider key
-pnpm repair:workspace-org -- --name "Example Co" --domain example.com --owner-email owner@example.com
-pnpm dev               # starts the workspace gateway; opens Dispatch when present
-```
-
-The dev gateway serves Dispatch at `/dispatch` when you keep the recommended
-Dispatch app selected, and every app at its own path such as `/chat`. It
-watches `apps/`, so newly-created apps are detected without restarting
-`pnpm dev`. App servers start lazily the first time you visit their path. App
-links should stay relative, such as `/chat` or `/<app-id>`; do not hardcode
-localhost or dev ports because the active gateway origin owns the port.
-
-Dispatch vault keys are workspace-wide by default: every saved vault key is
-available to every workspace app and can be synced from Dispatch. Switch the
-Vault page to manual access only when you need explicit per-app key grants.
-Dispatch resources are inherited rather than synced: All-app resources live
-once at workspace scope and every app agent reads them at runtime. Use selected
-resource grants only for genuinely app-specific context.
-
-## Workspace org identity
-
-Set these root `.env` values before production deploys or when repairing
-cross-app trust:
-
-- `WORKSPACE_ORG_NAME` — the organization name users should see.
-- `WORKSPACE_ORG_DOMAIN` — the bare email/domain claim used for org matching.
-- `WORKSPACE_OWNER_EMAIL` — the owner/admin email to use for bootstrap or
-  integration fallback.
-- `A2A_SECRET` — shared signing secret for cross-app A2A calls.
-
-Run `pnpm repair:workspace-org -- --name "<org>" --domain example.com --owner-email owner@example.com`
-to validate those values without writing env files. Existing
-organization rows should still be repaired through the app's org settings UI or
-authenticated org routes whenever possible.
-
-## Adding a new app
+`infra/` provisions the whole thing from clean state: ECR, ECS Fargate (app +
+Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
+DNS.
 
 ```bash
-pnpm exec agent-native create crm --template=chat
+cd infra && terraform init && terraform apply   # ~15 min
+cd .. && infra/push-images.sh                    # build + push app & ollama images
+aws ecs update-service --cluster inbound-demo --service inbound-demo --force-new-deployment
+# seed once the service is healthy:
+aws ecs execute-command --cluster inbound-demo --task <task-id> --container app \
+  --interactive --command "node scripts/prod-seed.mjs"
+./scripts/smoke.sh https://demos.dallascrilley.com/inbound
 ```
 
-The CLI detects the workspace root and scaffolds a minimal starter app that already
-depends on `@inbound/shared`. Edit only the routes you care about;
-auth, org switching, skills, and instructions come from the shared package.
-The source template is only a scaffold: the finished app should use its own name,
-home screen, navigation, package metadata, and manifest rather than leaving
-starter or new-app UI in place.
-If the request starts from Dispatch in production, Dispatch sends it to Builder
-branch creation; that branch should still add a new `apps/<app-id>` workspace
-app rather than editing an existing app directory.
-Dispatch discovers ready apps from `apps/<app-id>/package.json`; there is no
-separate workspace app registry to edit. React Router apps must preserve
-`APP_BASE_PATH` / `VITE_APP_BASE_PATH` in `app/entry.client.tsx` via
-`appBasePath()` so `/<app-id>` hydrates correctly.
-For requests phrased as creating an "agent", classify the scope first: simple
-recurring Dispatch behavior can stay in Dispatch, while a robust app-like
-teammate should become a real workspace app listed with the rest of the apps.
-First-party apps such as Mail, Calendar, Analytics, Brain, Assets, and Dispatch should be
-treated as existing hosted or connected neighbors. If a new app needs access to
-their data or agents, link/delegate to those apps through the workspace/A2A
-path rather than creating wrapper apps, child apps, or cloned template copies
-inside the new app. Only fork one of those apps when the user explicitly asks
-for a customized copy.
+DNS is the one operator step: no available Cloudflare credential can see the
+zone, so `terraform output dns_records_to_create` prints the ACM validation
+CNAME + the demos CNAME to add by hand (or set `manage_dns=true` with a
+zone-capable token). Runtime is ~$55/month (Fargate 2 vCPU/8 GB, db.t4g.micro,
+ALB) — destroy with `terraform destroy`.
 
-## Editing shared behavior
+## Environment
 
-Put cross-cutting code in `packages/shared/` when more than one app needs it.
-For example, exporting an `authPlugin` from `packages/shared/src/server/index.ts`
-lets every app use the same auth customization on the next dev reload.
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL_BASE` | SSM (Terraform) | `postgres://user:pass@host:5432`; the runner derives one DB per app (`inbound_<app>`) |
+| `BETTER_AUTH_SECRET`, `A2A_SECRET` | SSM (Terraform) | Auth signing + cross-app JWT secret |
+| `ANALYTICS_PUBLIC_KEY` | SSM (Terraform) | First-party track write key (seed inserts the same value) |
+| `QUALIFY_LLM_PROVIDER` / `QUALIFY_LLM_MODEL` | task env | `ollama`/`qwen3:4b` by default; `openai` flips to hosted |
+| `OPENAI_API_KEY` | SSM (Terraform, optional) | Only needed for hosted scoring |
+| `AGENT_USER_EMAIL` | task env | First-boot auto-account owner email |
+| `PUBLIC_URL` / `APP_URL` / `BETTER_AUTH_URL` | task env | Public origin incl. the `/inbound` prefix |
+
+Local dev uses per-app `.env` files instead (gitignored) — see
+`apps/*/. env.example`; dotenv does **not** override real env vars, so stale
+shell keys shadow `.env` (unset them).
+
+## Honesty notes
+
+- **All data is synthetic.** Companies are seeded fixtures; AEs are
+  `@inbound-demo.test`; the "enrichment provider" is a deterministic local
+  firmographics table standing in for the production Brave/Trafilatura/Gemini
+  pipeline (interface-identical, swap-in ready). Nothing you submit is shared
+  anywhere.
+- Scores come from a 4B-parameter local model on CPU — expect ~1–2 minutes
+  per qualification in the cloud demo. That's a deliberate trade: the demo is
+  self-contained, costs $0/score, and proves the loop runs offline.
+- The Slack approval leg is specified but not enabled (needs a human to
+  create the sandbox workspace); the in-app queue proves the same gate.
+
+## Links
+
+- Live demo: <https://demos.dallascrilley.com/inbound>
+- Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Composition receipts: [`docs/receipts.md`](docs/receipts.md)
+- Slack wiring spec: [`docs/slack-wiring.md`](docs/slack-wiring.md)
+- Dallas: [dallascrilley.com](https://dallascrilley.com) · CV stories:
+  lead-to-cash operations, EnrichCRM (enrichment pipeline this demo
+  re-implements with synthetic data)

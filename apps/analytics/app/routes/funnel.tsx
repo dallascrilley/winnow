@@ -224,7 +224,13 @@ export default function PublicFunnelPage() {
           </span>
         )}
         Aggregates only — no lead identifiers leave the server. Demo with
-        synthetic data.
+        synthetic data.{" "}
+        <a
+          href="/forms/f/talk-to-sales"
+          className="text-zinc-400 underline underline-offset-2"
+        >
+          Submit a lead →
+        </a>
       </footer>
     </div>
   );

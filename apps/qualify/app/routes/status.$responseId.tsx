@@ -348,7 +348,13 @@ export default function LeadStatusPage() {
           </span>
         )}
         Demo with synthetic data — a public rebuild of production lead-to-cash
-        systems.
+        systems.{" "}
+        <a
+          href="/analytics/funnel"
+          className="text-zinc-400 underline underline-offset-2"
+        >
+          Live funnel →
+        </a>
       </footer>
     </div>
   );

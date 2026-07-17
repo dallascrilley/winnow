@@ -1,0 +1,1 @@
+[{"id":"name","type":"text","label":"Your name","required":true},{"id":"email","type":"email","label":"Work email","required":true},{"id":"company_size","type":"select","label":"Company size","options":["1-10","11-50","51-200","201-500","500+"],"required":true},{"id":"message","type":"textarea","label":"What are you trying to solve?","required":false}]
