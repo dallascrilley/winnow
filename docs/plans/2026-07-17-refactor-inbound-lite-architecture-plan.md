@@ -58,7 +58,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-17 17:10Z) Rechecked live AWS state: RDS and ALB are active, but ECS has zero running tasks, one pending task, no registered targets, and a missing Ollama ECR digest error.
 - [x] (2026-07-17 17:15Z) Selected the dual-profile architecture and resolved EC2 versus Lightsail, public routing, inference, persistence, and proof-run decisions.
 - [x] (2026-07-17 17:46Z) Reframed lite as an on-demand hibernating origin. Live AWS rates make the fixed idle floor about $6.05/month and a 30-running-hour month about $7.06 before model calls and low-volume usage charges.
-- [ ] U1. Recover and prove the existing standard profile.
+- [x] (2026-07-17 20:25Z) U1. Recovered and proved the existing standard profile at Git `126b610`: immutable app and Ollama digests recorded, production seed exited 0, ECS/ALB became healthy, all five apps passed health, and the planted lead reached `routed` with funnel movement. Functional proof used the ALB HTTP origin; standard-origin DNS/ACM remains a separate operator gate.
 - [ ] U2. Qualify hosted inference for the live profile.
 - [ ] U3. Make the runtime portable across RDS and local PostgreSQL.
 - [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
@@ -85,7 +85,9 @@ inbound-standard-origin.dallascrilley.com/inbound
 
 ## Surprises & Discoveries
 
-- The standard profile is currently unhealthy for a new reason: ECS task definition revision 1 resolves an Ollama image digest that no longer exists in ECR. This supersedes the earlier assumption that rebuilding only the SSL-fixed app image was sufficient.
+- The earlier missing-Ollama-digest event was not the final blocker; a valid digest existed and the recovered sidecar runs it successfully. The actual U1 blockers were a stale app image without the RDS SSL fix, task-definition environment drift, CLI seed entrypoints retaining private Drizzle pools, an incorrect Forms response-shape assumption in smoke, and Qwen's default thinking mode exceeding the scoring window.
+- The standard ECS service's minimum-healthy 0 / maximum 100 deployment policy drained its only task and then stalled at desired 1, running 0, pending 0. A second force after drain triggered placement. This maintenance window is acceptable for bounded proof mode and is another reason not to use ECS service scheduling as the lite wake primitive.
+- The recovered standard task definition still references mutable `latest` tags. The green resolved digests are captured in `docs/receipts/aws-standard-baseline.md`; U3 must convert both profiles to immutable image references.
 - `demos.dallascrilley.com` is the shared `demo-lab` Cloudflare Pages custom domain, not an Inbound-owned hostname. The original Terraform output that asks for a hostname-level CNAME to the ALB would hijack every portfolio demo and must not be followed.
 - The stable public route already has a cross-repo edge ownership chain: `../job-search/demo-lab` owns `demos.dallascrilley.com`, and `../job-search/edge/demo-router` maps `dallascrilley.com/demos/*` into it. Inbound needs a path-scoped adapter in both surfaces.
 - RDS requires `sslmode=require`, but the lite Postgres container does not provide TLS. `scripts/prod-start.mjs` and `scripts/prod-seed.mjs` currently hardcode RDS behavior and therefore need an explicit database transport contract.
@@ -108,7 +110,9 @@ inbound-standard-origin.dallascrilley.com/inbound
 
 ## Outcomes & Retrospective
 
-No implementation outcomes yet. At completion, record the actual fixed idle floor, monthly running hours, wake-to-healthy p50/p95, lease-stop reliability, hosted-model eval results, restore time, standard proof-run cost, cutover downtime, and whether t4g.small passed the post-cutover rightsizing gate.
+U1 established that the portfolio-standard topology is real rather than aspirational: ARM64 ECS, a local Ollama sidecar, private RDS PostgreSQL, ALB health, production seeding, and the complete form-to-route-to-funnel path passed together at Git `126b610`. The recovery also exposed the operational tax the lite profile should remove: a 6.69 GB combined compressed image set, multi-minute task placement/pulls, a scheduler stall at zero tasks, and a modeled roughly $122–125 always-on month for a sparse portfolio workload.
+
+At completion, record the actual fixed idle floor, monthly running hours, wake-to-healthy p50/p95, lease-stop reliability, hosted-model eval results, restore time, standard proof-run cost, cutover downtime, and whether t4g.small passed the post-cutover rightsizing gate.
 
 ## Context and Orientation
 
@@ -344,3 +348,4 @@ No architecture question remains blocking. Execution still has three operator ga
 
 - 2026-07-17: Initial full plan synthesized from the six ranked ideation survivors, live AWS state, repository deployment receipts, relevant solution notes, current AWS/OpenAI pricing, and shared demo-routing ownership.
 - 2026-07-17: Pivoted lite from always-on to visitor-activated hibernation; updated `td-f93367`, cost targets, wake/lease security contract, cold-start acceptance, edge shell, recovery flow, and FinOps evidence.
+- 2026-07-17: Completed U1 standard recovery at Git `126b610`; added the dated baseline receipt, replaced the stale missing-digest diagnosis with observed root causes, and recorded the ECS scheduler stall plus green planted-lead smoke.
