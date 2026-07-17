@@ -2,6 +2,7 @@ import { defineAction } from "@agent-native/core/action";
 import { siblingActionFetch } from "@inbound/shared/server";
 import { z } from "zod";
 
+import { trackFunnelEvent } from "../server/lib/funnel-track.js";
 import {
   appendAudit,
   getLeadOrThrow,
@@ -41,6 +42,13 @@ export default defineAction({
         event: "rejected",
         detail: note ?? "rejected by reviewer",
       });
+      trackFunnelEvent("lead_rejected", lead.formResponseId ?? leadId, {
+        channel,
+      });
+      trackFunnelEvent("lead_disqualified", lead.formResponseId ?? leadId, {
+        reason: "rejected",
+        channel,
+      });
       return { leadId, status: "disqualified" };
     }
 
@@ -51,11 +59,28 @@ export default defineAction({
       event: "approved",
       detail: note ?? "approved by reviewer",
     });
+    trackFunnelEvent("lead_approved", lead.formResponseId ?? leadId, {
+      channel,
+    });
 
-    const route = await siblingActionFetch("scheduler", "route-lead", {
+    const route = (await siblingActionFetch("scheduler", "route-lead", {
       method: "POST",
       body: { formResponseId: lead.formResponseId },
-    });
+    })) as {
+      route?: {
+        hostEmail?: string;
+        eventTypeId?: string;
+        matchedRuleId?: string;
+      };
+      idempotent?: boolean;
+    };
+    if (route?.route && !route.idempotent && lead.formResponseId) {
+      trackFunnelEvent("lead_routed", lead.formResponseId, {
+        host: route.route.hostEmail ?? null,
+        eventType: route.route.eventTypeId ?? null,
+        rule: route.route.matchedRuleId ?? null,
+      });
+    }
 
     return { leadId, status: "approved", route };
   },

@@ -2,6 +2,7 @@ import { defineAction } from "@agent-native/core/action";
 import { z } from "zod";
 
 import { LEAD_STATUSES } from "../server/db/schema.js";
+import { trackFunnelEvent } from "../server/lib/funnel-track.js";
 import {
   appendAudit,
   getLeadOrThrow,
@@ -32,6 +33,12 @@ export default defineAction({
       event: `status:${lead.status}→${status}`,
       detail,
     });
+    // Only book-lead (scheduler) transitions a lead to booked, so this is the
+    // single emission site — the routed event fires caller-side where the
+    // structured route payload exists.
+    if (status === "booked") {
+      trackFunnelEvent("lead_booked", lead.formResponseId ?? leadId, {});
+    }
     return { leadId, status };
   },
 });

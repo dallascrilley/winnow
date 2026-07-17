@@ -7,6 +7,7 @@ import {
   proposeRoutingStep,
   scoreLeadStep,
 } from "../server/lib/chain.js";
+import { trackFunnelEvent } from "../server/lib/funnel-track.js";
 import { appendAudit } from "../server/lib/leads.js";
 
 /**
@@ -37,10 +38,24 @@ export default defineAction({
         if (proposal.band === "auto") {
           // Auto-approved leads route immediately; review-band leads wait
           // for the U5 approval gate.
-          await siblingActionFetch("scheduler", "route-lead", {
+          const routed = (await siblingActionFetch("scheduler", "route-lead", {
             method: "POST",
             body: { formResponseId: args.formResponseId },
-          });
+          })) as {
+            route?: {
+              hostEmail?: string;
+              eventTypeId?: string;
+              matchedRuleId?: string;
+            };
+            idempotent?: boolean;
+          };
+          if (routed?.route && !routed.idempotent) {
+            trackFunnelEvent("lead_routed", args.formResponseId, {
+              host: routed.route.hostEmail ?? null,
+              eventType: routed.route.eventTypeId ?? null,
+              rule: routed.route.matchedRuleId ?? null,
+            });
+          }
         }
       } catch (error) {
         await appendAudit(leadId, {

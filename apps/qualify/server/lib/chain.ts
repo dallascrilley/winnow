@@ -2,6 +2,7 @@ import { eq } from "@agent-native/core/db/schema";
 
 import { getDb, schema } from "../db/index.js";
 import { enrich } from "./enrichment.js";
+import { trackFunnelEvent } from "./funnel-track.js";
 import {
   appendAudit,
   currentOwnerEmail,
@@ -68,6 +69,9 @@ export async function enrichLeadStep(
       },
       db,
     );
+    trackFunnelEvent("lead_submitted", args.formResponseId ?? leadId, {
+      source: args.formResponseId ? "talk-to-sales" : "direct",
+    });
   } else {
     const existing = await getLeadOrThrow(leadId, db);
     // Re-enrichment refreshes the profile but must not rewind a lead that
@@ -102,6 +106,10 @@ export async function enrichLeadStep(
     },
     db,
   );
+  trackFunnelEvent("lead_enriched", lead.formResponseId ?? leadId, {
+    matched: profile.matched,
+    industry: profile.matched ? profile.industry : null,
+  });
 
   return { leadId, profile };
 }
@@ -146,6 +154,13 @@ export async function scoreLeadStep(leadId: string) {
     },
     db,
   );
+  trackFunnelEvent("lead_scored", lead.formResponseId ?? leadId, {
+    fitScore: score.fitScore,
+    tier: score.tier,
+    segment: score.segment,
+    model: usage.model,
+    costUsd: usage.costUsd,
+  });
 
   return { leadId, score, usage };
 }
@@ -185,6 +200,14 @@ export async function proposeRoutingStep(leadId: string) {
     { actor: "system", event: "routing-proposed", detail: proposal.reason },
     db,
   );
+  trackFunnelEvent("lead_routing_proposed", lead.formResponseId ?? leadId, {
+    band: proposal.band,
+  });
+  if (proposal.band === "disqualify") {
+    trackFunnelEvent("lead_disqualified", lead.formResponseId ?? leadId, {
+      reason: "low-fit",
+    });
+  }
 
   return { leadId, proposal, status };
 }

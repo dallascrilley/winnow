@@ -11,6 +11,12 @@ export default createAuthPlugin({
     // and server/lib/status-pages.ts `getPublicStatusPage`).
     "/status",
     "/_agent-native/actions/get-public-status-page",
+    // Public inbound-funnel demo page + its scoped aggregate read (fixed
+    // server-side queries, no caller SQL — the generic panel pipeline stays
+    // auth-gated). dashboard-agent-context self-guards on visibility=public.
+    "/funnel",
+    "/_agent-native/actions/get-public-funnel",
+    "/api/dashboard-agent-context.json",
   ],
   marketing: {
     appName: "Agent-Native Analytics",
