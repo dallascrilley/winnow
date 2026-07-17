@@ -110,3 +110,13 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [hand] qualify `process-lead` auto-chain: after propose, band=auto → signed call to scheduler `route-lead`. chain-error audit entries make cross-app failures visible on the status page (observed live during the migration break).
 - [bug] Schedules seeded with ownerEmail=dev@local.test → `getAvailableSlots` found no host schedule (empty slot grid). Fixed: AE-owned schedules.
 - [cmd] E2E PROOF: submit (riley@meridianops.com) → 0.90 auto-approved → routed (discovery, host aria, rule_default_fit) → anonymous slots (13:00Z…) → booked uid gRWd9LwpYAWb → qualify status booked. book-lead idempotent on replay.
+
+## 2026-07-17 — U5: HITL approval gate + review queue
+
+- [hand] `apps/qualify/actions/decide-lead-approval.ts` — human gate action: approve → status approved + signed call to scheduler `route-lead` (same path as the auto band); reject → disqualified. Both record audit `actor: human` + `channel` (default `app`; `slack` reserved for the deferred leg). Idempotent on repeat decisions.
+- [hand] Mid-band parking lives in `server/lib/chain.ts` (committed with U4): score in [0.4, 0.8) → status `pending_approval`, audit `routing-proposed`, chain stops until a human decides.
+- [hand] `apps/qualify/app/routes/approvals.tsx` — owner-only review queue (CSR shell): pending leads with score/tier/reasoning, one-click Approve/Reject via the action surface.
+- [cmd] E2E PROOF (HTTP, cookie auth): mhale.ops88@gmail.com → 0.50 medium → `pending_approval` → POST decide-lead-approval `{decision: approve, channel: app}` → 200, routed (et_discovery, host aria, rule_default_fit). alex.reyes.logistics@gmail.com → 0.45 → parked → reject → 200, disqualified. Audit timelines show `human app approved/rejected` between `routing-proposed` and routing.
+- [cmd] Approvals page `GET /qualify/approvals` 200 (impersonal CSR shell, no data) both with and without a session — the boundary is the action layer: anonymous `list-leads` and `decide-lead-approval` both 401; with workspace cookie both 200.
+- [observation] qwen3:4b band calibration is bimodal on free-email inputs: real pain + role → 0.85–0.95; vague/consumer → 0.2–0.3. Mid-band (0.4–0.79) reliably comes from: ops/office role at a 100–300-person company + free email + explicit weak timing/budget ("just researching", "no budget approved"). Two rejected calibrations: "family business exploring" → 0.2; "consultant/partner program" → 0.3; "sales ops, reps losing inquiries" → 0.85 (too strong).
+- [note] Slack leg deferred (operator gate: workspace creation + public URL post-U8). Full enablement spec in `docs/slack-wiring.md` — no schema changes needed; `channel` param already carries it.
