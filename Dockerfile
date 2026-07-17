@@ -32,7 +32,12 @@ RUN pnpm install --frozen-lockfile
 # ships the toolchain.
 COPY . .
 
-RUN pnpm build
+# Each app's client+server bundle is built with its /<appId> base path baked
+# in, matching the dev/netlify contract. packages/shared was already built by
+# its install-time prepare script.
+RUN for app in analytics dispatch forms qualify scheduler; do \
+      APP_BASE_PATH=/$app VITE_APP_BASE_PATH=/$app pnpm --filter "$app" run build || exit 1; \
+    done
 
 ENV NODE_ENV=production
 EXPOSE 8080

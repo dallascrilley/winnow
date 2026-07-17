@@ -43,6 +43,12 @@ variable "cert_validated" {
 variable "db_password" {
   type      = string
   sensitive = true
+  # Interpolated raw into the postgres:// URL in ssm.tf — URL-reserved chars
+  # (@ : / ? # % &) would corrupt it.
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._~!$'()*+,;=-]+$", var.db_password))
+    error_message = "db_password must be URL-safe: letters, digits, and ._~!$'()*+,;=- only."
+  }
 }
 
 variable "openai_api_key" {

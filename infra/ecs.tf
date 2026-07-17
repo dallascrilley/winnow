@@ -58,7 +58,7 @@ resource "aws_iam_role_policy" "execution_ssm" {
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
-      Action = ["ssm:GetParameters", "kms:Decrypt"]
+      Action = ["ssm:GetParameters"]
       Resource = concat(
         [for k, v in aws_ssm_parameter.secrets : v.arn],
         var.openai_api_key != "" ? [aws_ssm_parameter.openai_api_key[0].arn] : [],
@@ -100,6 +100,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "WORKSPACE_GATEWAY_URL", value = "http://127.0.0.1:8080" },
         { name = "APP_URL", value = local.public_url },
         { name = "BETTER_AUTH_URL", value = local.public_url },
+        { name = "PUBLIC_URL", value = local.public_url },
         { name = "WORKSPACE_ORG_NAME", value = "Inbound Demo" },
         { name = "WORKSPACE_ORG_DOMAIN", value = "inbound-demo.test" },
         { name = "WORKSPACE_ORG_OWNER_EMAIL", value = "demo@inbound-demo.test" },

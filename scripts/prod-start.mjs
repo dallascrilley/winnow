@@ -64,6 +64,8 @@ for (const app of APPS) {
     HOST: "127.0.0.1",
     NITRO_PORT: String(app.port),
     NITRO_HOST: "127.0.0.1",
+    APP_BASE_PATH: `/${app.id}`,
+    VITE_APP_BASE_PATH: `/${app.id}`,
   };
   if (DB_BASE)
     env.DATABASE_URL = `${DB_BASE}/inbound_${app.id}?sslmode=require`;
@@ -121,7 +123,7 @@ const server = http.createServer(async (req, res) => {
       res.end();
       return;
     }
-    const seg = urlPath.split("/")[1] ?? "";
+    const seg = urlPath.split("?")[0].split("/")[1] ?? "";
     const app = APPS.find((a) => a.id === seg);
     if (!app) {
       res.writeHead(404, { "content-type": "text/plain" });

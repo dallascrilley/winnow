@@ -16,7 +16,7 @@ check() { # name expected actual
 
 say "== health"
 HEALTH=$(curl -s -m 20 "$BASE/healthz")
-check "healthz ok:true" "true" "$(printf '%s' "$HEALTH" | python3 -c 'import sys,json; print(json.load(sys.stdin)["ok"])' 2>/dev/null || echo parse-error)"
+check "healthz ok:true" "true" "$(printf '%s' "$HEALTH" | python3 -c 'import sys,json; print(str(json.load(sys.stdin)["ok"]).lower())' 2>/dev/null || echo parse-error)"
 
 say "== public surfaces"
 for path in "/analytics/funnel" "/analytics/_agent-native/actions/get-public-funnel" "/forms/f/talk-to-sales"; do

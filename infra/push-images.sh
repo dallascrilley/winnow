@@ -24,7 +24,8 @@ FROM ollama/ollama:latest
 RUN ollama serve & \
     for i in $(seq 1 30); do curl -sf localhost:11434/api/tags >/dev/null && break; sleep 1; done; \
     ollama pull qwen3:4b && \
-    pkill -f "ollama serve" || true
+    ollama list | grep -q "^qwen3:4b" && \
+    { pkill -f "ollama serve" || true; }
 DOCKERFILE
 docker push "$OLLAMA_REPO:latest"
 
