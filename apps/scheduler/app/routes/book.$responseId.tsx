@@ -73,39 +73,45 @@ export default function BookPage() {
     if (!responseId) return;
     const base = apiBase();
     void (async () => {
+      let data;
       try {
         const res = await fetch(
           `${base}/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
           { cache: "no-store" },
         );
-        const data = await res.json();
+        data = await res.json();
+        const info = data?.route;
         // no_route / cancelled links have no bookable surface — don't strand the
         // page on "Loading availability…".
         if (
           !res.ok ||
-          !data.found ||
-          !data.route ||
-          (data.route.status !== "routed" && data.route.status !== "booked")
+          !data?.found ||
+          !info ||
+          (info.status !== "routed" && info.status !== "booked")
         ) {
           setNotFound(true);
           return;
         }
-        setRoute(data.route);
-        if (data.route.status !== "routed") return;
+        setRoute(info);
+        if (info.status !== "routed") return;
+      } catch {
+        setError(
+          "Couldn't load this booking link — check your connection and refresh.",
+        );
+        return;
+      }
+      try {
         const slotsRes = await fetch(
           `${base}/_agent-native/actions/route-slots?responseId=${encodeURIComponent(responseId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&timezone=${encodeURIComponent(TZ)}`,
           { cache: "no-store" },
         );
         const slotsData = await slotsRes.json();
         setSlots(slotsData.slots ?? []);
-        setSlotsLoaded(true);
       } catch {
-        // End the loading state on any failure; with no route loaded the
-        // message below renders, otherwise the no-availability copy shows.
+        // Failed slots fetch falls through to empty slots — the loaded flag
+        // renders the no-availability fallback instead of a stuck spinner.
+      } finally {
         setSlotsLoaded(true);
-        setError(
-          "Couldn't load this booking link — check your connection and refresh.",
-        );
       }
     })();
   }, [responseId, range]);
