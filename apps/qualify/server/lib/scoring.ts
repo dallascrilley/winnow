@@ -124,11 +124,7 @@ export function buildPrompt(icp: string, input: ScoreInput): string {
     `- message: ${(input.message ?? "").trim() || "(none)"}`,
     "",
     "Rules:",
-    "- fit_score is 0..1 with two decimals. Reserve >= 0.8 for clear ICP matches.",
-    "- Personal/free email with no business signals: segment=personal, fit_score <= 0.30.",
-    "- Company size 500+ employees: segment=enterprise. 50-499: midmarket. Under 50: smb.",
-    "- Unverified enrichment is a weak negative, not an automatic reject.",
-    "- reasoning: at most 60 words, plain language, no marketing tone.",
+    ...PROMPT_RULES,
     "",
     'Respond with strict JSON only: {"fit_score": number, "tier": "high"|"medium"|"low", "segment": "smb"|"midmarket"|"enterprise"|"personal"|"unknown", "reasoning": string}',
   ].join("\n");
@@ -136,6 +132,20 @@ export function buildPrompt(icp: string, input: ScoreInput): string {
 
 export const SYSTEM_PROMPT =
   "You are an inbound lead qualifier for a B2B SaaS company. You output only strict JSON.";
+
+// The scoring policy block, shared by buildPrompt and the eval promptHash —
+// a rules edit must move the eval run id, otherwise a score change becomes
+// unattributable (schema comment on eval_runs.prompt_hash).
+export const PROMPT_RULES = [
+  "- fit_score is 0..1 with two decimals. Reserve >= 0.8 for clear ICP matches.",
+  "- Trust discount: a free/consumer email domain means the company cannot be verified. Such leads must stay below 0.80 unless the message shows specific, immediate buying intent with clear budget authority (evaluating now, team named, timeline stated). Vague curiosity, research, or 'no budget approved' from a free address scores 0.40-0.79.",
+  "- Personal/free email with no business signals at all: segment=personal, fit_score <= 0.30.",
+  "- segment describes the COMPANY, never the message intent: 500+ employees = enterprise, 50-499 = midmarket, 1-49 = smb (even non-buyers like vendors keep their company segment). segment=personal only for non-commercial individuals; segment=unknown when nothing about the company can be known (e.g. gibberish with no usable signals).",
+  "- Gibberish or content-free messages: fit_score <= 0.30 regardless of domain quality; a good domain cannot rescue an empty message.",
+  "- Vendors pitching their own services — partnerships, reselling, SEO/marketing/agency offers for US — are weak fit regardless of how big or polished the sender sounds: fit_score <= 0.39. A pitch to resell our product is not intent to buy it.",
+  "- Unverified enrichment is a weak negative, not an automatic reject.",
+  "- reasoning: at most 60 words, plain language, no marketing tone.",
+] as const;
 
 const SEGMENTS: Segment[] = [
   "smb",
@@ -246,6 +256,9 @@ export async function callOllama(
       model,
       format: "json",
       stream: false,
+      // Deterministic decoding: a scorer that gives different answers to the
+      // same lead twice makes both routing and the U6 eval gate meaningless.
+      options: { temperature: 0 },
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

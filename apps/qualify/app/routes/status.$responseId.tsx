@@ -45,6 +45,16 @@ interface LeadStatus {
 
 type Payload = { found: false } | { found: true; lead: LeadStatus };
 
+type EvalPayload = {
+  found: boolean;
+  eval?: {
+    accuracy: number;
+    caseCount: number;
+    model: string;
+    createdAt: string;
+  };
+};
+
 const STAGES = [
   { key: "received", label: "Received" },
   { key: "enriching", label: "Enriched" },
@@ -100,7 +110,17 @@ export default function LeadStatusPage() {
   const { responseId } = useParams();
   const [payload, setPayload] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [evalInfo, setEvalInfo] = useState<EvalPayload | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    fetch("/_agent-native/actions/get-eval-status", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: EvalPayload | null) => {
+        if (data?.found) setEvalInfo(data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!responseId) return;
@@ -313,6 +333,17 @@ export default function LeadStatusPage() {
         {lead?.llmModel && (
           <span>
             Scored by {lead.llmModel} · cost ${lead.llmCostUsd.toFixed(4)}{" "}
+            ·{" "}
+          </span>
+        )}
+        {evalInfo?.eval && (
+          <span>
+            Qualifier accuracy: {(evalInfo.eval.accuracy * 100).toFixed(0)}% ·{" "}
+            {evalInfo.eval.caseCount} golden cases · {evalInfo.eval.model} ·{" "}
+            {new Date(evalInfo.eval.createdAt).toLocaleDateString([], {
+              month: "short",
+              day: "numeric",
+            })}{" "}
             ·{" "}
           </span>
         )}

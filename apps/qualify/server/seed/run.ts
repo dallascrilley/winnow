@@ -37,6 +37,25 @@ await db.insert(schema.qualifySettings).values({
   updatedAt: new Date().toISOString(),
 });
 
+const { EVAL_CASES } = await import("./eval-cases.js");
+
+// Eval cases are seed-owned (never produced by traffic): replace the set so
+// edits to goldens propagate on reseed. Rerunning an eval over changed cases
+// produces a new promptHash, which is the intended history signal.
+await db.delete(schema.evalCases);
+await db.insert(schema.evalCases).values(
+  EVAL_CASES.map((c) => ({
+    id: c.id,
+    name: c.name,
+    input: JSON.stringify(c.input),
+    expectedTier: c.expectedTier,
+    expectedSegment: c.expectedSegment,
+    expectedShouldRoute: c.expectedShouldRoute,
+    tags: JSON.stringify(c.tags),
+    createdAt: new Date().toISOString(),
+  })),
+);
+
 console.log(
-  `seed: firmographics ${rows.length} total (${missing.length} inserted), icp_definition set`,
+  `seed: firmographics ${rows.length} total (${missing.length} inserted), icp_definition set, ${EVAL_CASES.length} eval cases`,
 );
