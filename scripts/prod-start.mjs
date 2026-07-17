@@ -32,7 +32,10 @@ const DB_BASE = process.env.DATABASE_URL_BASE; // e.g. postgres://u:p@host:5432
 // migrations on first connection.
 if (DB_BASE) {
   const { default: postgres } = await import("postgres");
-  const sql = postgres(`${DB_BASE}/postgres`, { max: 1, connect_timeout: 20 });
+  const sql = postgres(`${DB_BASE}/postgres?sslmode=require`, {
+    max: 1,
+    connect_timeout: 20,
+  });
   for (const app of APPS) {
     const dbName = `inbound_${app.id}`;
     const exists =
@@ -62,7 +65,8 @@ for (const app of APPS) {
     NITRO_PORT: String(app.port),
     NITRO_HOST: "127.0.0.1",
   };
-  if (DB_BASE) env.DATABASE_URL = `${DB_BASE}/inbound_${app.id}`;
+  if (DB_BASE)
+    env.DATABASE_URL = `${DB_BASE}/inbound_${app.id}?sslmode=require`;
   const child = spawn("node", [entry], {
     env,
     stdio: ["ignore", "pipe", "pipe"],
