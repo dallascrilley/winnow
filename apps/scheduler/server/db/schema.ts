@@ -3,7 +3,12 @@ import { eventTypes } from "@agent-native/scheduling/schema";
 
 export * from "@agent-native/scheduling/schema";
 
-export const LEAD_ROUTE_STATUSES = ["routed", "booked", "cancelled"] as const;
+export const LEAD_ROUTE_STATUSES = [
+  "routed",
+  "booked",
+  "cancelled",
+  "no_route",
+] as const;
 
 /**
  * Join table between qualify's leads (keyed by the public formResponseId
@@ -18,10 +23,10 @@ export const leadRoutes = table(
     qualifyLeadId: text("qualify_lead_id").notNull(),
     routingFormId: text("routing_form_id").notNull(),
     matchedRuleId: text("matched_rule_id"),
-    eventTypeId: text("event_type_id")
-      .notNull()
-      .references(() => eventTypes.id),
-    hostEmail: text("host_email").notNull(),
+    // Nullable: "no_route" rows record a routing decision that produced no
+    // bookable event type or host.
+    eventTypeId: text("event_type_id").references(() => eventTypes.id),
+    hostEmail: text("host_email"),
     status: text("status", { enum: LEAD_ROUTE_STATUSES })
       .notNull()
       .default("routed"),

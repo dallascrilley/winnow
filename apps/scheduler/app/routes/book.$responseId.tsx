@@ -22,6 +22,13 @@ interface Slot {
 
 const TZ = "America/Chicago";
 
+// Root-absolute action URLs 404 behind the workspace gateway — derive the app
+// prefix from the current path ("" direct-dev, "/scheduler" dev-gateway,
+// "/inbound/scheduler" prod). Client-only callers (useEffect / confirm).
+function apiBase(): string {
+  return window.location.pathname.replace(/\/book\/[^/]+\/?$/, "");
+}
+
 function dayLabel(iso: string): string {
   return new Date(iso).toLocaleDateString([], {
     weekday: "short",
@@ -63,20 +70,26 @@ export default function BookPage() {
 
   useEffect(() => {
     if (!responseId) return;
+    const base = apiBase();
     void (async () => {
       const res = await fetch(
-        `/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
+        `${base}/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
         { cache: "no-store" },
       );
       const data = await res.json();
-      if (!data.found) {
+      // no_route / cancelled links have no bookable surface — don't strand the
+      // page on "Loading availability…".
+      if (
+        !data.found ||
+        (data.route.status !== "routed" && data.route.status !== "booked")
+      ) {
         setNotFound(true);
         return;
       }
       setRoute(data.route);
       if (data.route.status !== "routed") return;
       const slotsRes = await fetch(
-        `/_agent-native/actions/route-slots?responseId=${encodeURIComponent(responseId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&timezone=${encodeURIComponent(TZ)}`,
+        `${base}/_agent-native/actions/route-slots?responseId=${encodeURIComponent(responseId)}&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&timezone=${encodeURIComponent(TZ)}`,
         { cache: "no-store" },
       );
       const slotsData = await slotsRes.json();
@@ -98,7 +111,7 @@ export default function BookPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/_agent-native/actions/book-lead", {
+      const res = await fetch(`${apiBase()}/_agent-native/actions/book-lead`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

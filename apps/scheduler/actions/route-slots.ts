@@ -18,8 +18,8 @@ export default defineAction({
     "Public slot grid for a routed lead (host-pinned availability) by form response id.",
   schema: z.object({
     responseId: z.string().min(1),
-    from: z.string(),
-    to: z.string(),
+    from: z.string().datetime(),
+    to: z.string().datetime(),
     timezone: z.string().optional(),
   }),
   http: { method: "GET" },
@@ -33,7 +33,9 @@ export default defineAction({
       .limit(1);
     const route = routes[0];
     if (!route) throw new Error("route not found");
-    if (route.status !== "routed") return { slots: [] };
+    if (route.status !== "routed" || !route.eventTypeId || !route.hostEmail) {
+      return { slots: [] };
+    }
 
     const eventType = await getEventTypeById(route.eventTypeId);
     if (!eventType) throw new Error("event type missing");

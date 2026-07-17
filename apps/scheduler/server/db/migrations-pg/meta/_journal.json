@@ -15,6 +15,20 @@
       "when": 1784259306388,
       "tag": "0001_lead-routes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784298908781,
+      "tag": "0002_booking-slot-guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784299069822,
+      "tag": "0003_lead-routes-no-route",
+      "breakpoints": true
     }
   ]
 }

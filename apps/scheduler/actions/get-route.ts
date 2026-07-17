@@ -28,11 +28,13 @@ export default defineAction({
     const route = rows[0];
     if (!route) return { found: false as const };
 
-    const etRows = await db
-      .select()
-      .from(schema.eventTypes)
-      .where(eq(schema.eventTypes.id, route.eventTypeId))
-      .limit(1);
+    const etRows = route.eventTypeId
+      ? await db
+          .select()
+          .from(schema.eventTypes)
+          .where(eq(schema.eventTypes.id, route.eventTypeId))
+          .limit(1)
+      : [];
     const et = etRows[0];
     const ae = AES.find((a) => a.email === route.hostEmail);
 
@@ -42,7 +44,7 @@ export default defineAction({
         status: route.status,
         eventTitle: et?.title ?? "Call",
         eventLength: et?.length ?? 30,
-        hostName: ae?.name ?? route.hostEmail.split("@")[0],
+        hostName: ae?.name ?? route.hostEmail?.split("@")[0] ?? "the team",
         bookingUid: route.bookingUid,
       },
     };

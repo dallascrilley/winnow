@@ -4,9 +4,13 @@ import { siblingActionFetch } from "@inbound/shared/server";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
-import { evaluateRouting } from "../server/lib/routing-evaluator.js";
+import { isUniqueViolation } from "../server/lib/is-unique-violation.js";
+import { pickRoundRobinHost } from "../server/lib/pick-round-robin-host.js";
+import {
+  evaluateRouting,
+  type RoutingAction,
+} from "../server/lib/routing-evaluator.js";
 import { ROUTING_FORM_ID } from "../server/seed/team.js";
-import assignRoundRobinHost from "./assign-round-robin-host.js";
 
 interface QualifyLeadStatus {
   found: boolean;
@@ -17,12 +21,35 @@ interface QualifyLeadStatus {
   };
 }
 
+type LeadRoute = typeof schema.leadRoutes.$inferSelect;
+
+function idempotentResult(formResponseId: string, route: LeadRoute) {
+  if (route.status === "no_route") {
+    return {
+      formResponseId,
+      routed: false as const,
+      matchedRuleId: route.matchedRuleId,
+      idempotent: true as const,
+    };
+  }
+  return {
+    formResponseId,
+    route,
+    bookingPath: `/scheduler/book/${formResponseId}`,
+    idempotent: true as const,
+  };
+}
+
 /**
  * Route an approved lead: evaluate the routing form over its qualification
  * segment, round-robin the event type's host pool, persist the decision in
  * lead_routes, and mark the lead routed back in qualify. Idempotent by
  * formResponseId. Called by qualify's auto-chain and by the U5 approval
  * callback — not part of the anonymous surface.
+ *
+ * Rotation is app-side (pick-round-robin-host over lead_routes history): the
+ * package metric counts past-30-day bookings, which never sees this app's
+ * future-dated bookings and pins every lead to the priority-1 host.
  */
 export default defineAction({
   description:
@@ -40,12 +67,7 @@ export default defineAction({
       .where(eq(schema.leadRoutes.formResponseId, formResponseId))
       .limit(1);
     if (existing[0]) {
-      return {
-        formResponseId,
-        route: existing[0],
-        bookingPath: `/scheduler/book/${formResponseId}`,
-        idempotent: true,
-      };
+      return idempotentResult(formResponseId, existing[0]);
     }
 
     const { found, lead } = await siblingActionFetch<QualifyLeadStatus>(
@@ -74,31 +96,101 @@ export default defineAction({
       );
     }
 
+    const fallback = JSON.parse(rf.fallback ?? "null") as RoutingAction | null;
+    if (!fallback) {
+      throw new Error(
+        `routing form ${ROUTING_FORM_ID} has no fallback action — re-run pnpm seed`,
+      );
+    }
     const { matchedRuleId, action } = evaluateRouting(
-      JSON.parse(rf.rules ?? "[]"),
-      JSON.parse(rf.fallback ?? "null"),
+      JSON.parse(rf.rules ?? "[]") || [],
+      fallback,
       { segment: lead.segment ?? "unknown" },
     );
-    if (action.kind !== "event-type") {
-      throw new Error(`routing produced non-bookable action: ${action.kind}`);
-    }
-
-    const { hostEmail } = (await assignRoundRobinHost.run({
-      eventTypeId: action.eventTypeId,
-    })) as { hostEmail: string };
 
     const now = new Date().toISOString();
-    await db.insert(schema.leadRoutes).values({
+    const base = {
       formResponseId,
       qualifyLeadId: lead.id,
       routingFormId: ROUTING_FORM_ID,
       matchedRuleId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Returns the winning row when a concurrent route-lead for the same
+    // formResponseId beat this insert; null when this insert won.
+    const insertRoute = async (
+      values: typeof schema.leadRoutes.$inferInsert,
+    ): Promise<LeadRoute | null> => {
+      try {
+        await db.insert(schema.leadRoutes).values(values);
+        return null;
+      } catch (err) {
+        if (isUniqueViolation(err, "lead_routes")) {
+          const won = await db
+            .select()
+            .from(schema.leadRoutes)
+            .where(eq(schema.leadRoutes.formResponseId, formResponseId))
+            .limit(1);
+          if (won[0]) return won[0];
+        }
+        throw err;
+      }
+    };
+
+    if (action.kind !== "event-type") {
+      // A legit "no route" outcome (e.g. custom-message fallback) is a
+      // decision, not an error — persist it so retries stay idempotent.
+      const won = await insertRoute({
+        ...base,
+        eventTypeId: null,
+        hostEmail: null,
+        status: "no_route",
+      });
+      if (won) return idempotentResult(formResponseId, won);
+      return {
+        formResponseId,
+        routed: false as const,
+        matchedRuleId,
+        idempotent: false as const,
+      };
+    }
+
+    const hostRows = await db
+      .select()
+      .from(schema.eventTypeHosts)
+      .where(eq(schema.eventTypeHosts.eventTypeId, action.eventTypeId));
+    const assigned = await db
+      .select({ hostEmail: schema.leadRoutes.hostEmail })
+      .from(schema.leadRoutes)
+      .where(eq(schema.leadRoutes.eventTypeId, action.eventTypeId));
+    const counts: Record<string, number> = {};
+    for (const row of assigned) {
+      if (!row.hostEmail) continue;
+      counts[row.hostEmail] = (counts[row.hostEmail] ?? 0) + 1;
+    }
+    const hostEmail = pickRoundRobinHost(
+      hostRows.map((h) => ({
+        userEmail: h.userEmail,
+        isFixed: Boolean(h.isFixed),
+        priority: h.priority,
+      })),
+      counts,
+    );
+    if (!hostEmail) {
+      throw new Error(
+        `no hosts available for event type ${action.eventTypeId}`,
+      );
+    }
+
+    const won = await insertRoute({
+      ...base,
       eventTypeId: action.eventTypeId,
       hostEmail,
       status: "routed",
-      createdAt: now,
-      updatedAt: now,
     });
+    if (won) return idempotentResult(formResponseId, won);
 
     const etRows = await db
       .select({ slug: schema.eventTypes.slug, title: schema.eventTypes.title })
@@ -120,7 +212,7 @@ export default defineAction({
       formResponseId,
       route: { eventTypeId: action.eventTypeId, hostEmail, matchedRuleId },
       bookingPath: `/scheduler/book/${formResponseId}`,
-      idempotent: false,
+      idempotent: false as const,
     };
   },
 });

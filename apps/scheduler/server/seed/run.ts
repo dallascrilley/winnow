@@ -12,7 +12,7 @@ const { AES, DEMO_TZ, EVENT_TYPES, ROUTING_FORM_ID, ROUTING_FORM_NAME } =
 
 const db = getDb();
 const now = new Date().toISOString();
-const owner = "dev@local.test";
+const owner = process.env.AGENT_USER_EMAIL ?? "dev@local.test";
 
 // ── Schedules + availability, one per AE ──────────────────────────────────
 for (const ae of AES) {
@@ -114,13 +114,6 @@ if (rfExisting.length === 0) {
         type: "select",
         required: true,
         options: ["smb", "midmarket", "enterprise", "personal", "unknown"],
-      },
-      {
-        id: "message",
-        name: "message",
-        label: "Message",
-        type: "text",
-        required: false,
       },
     ]),
     rules: JSON.stringify([
