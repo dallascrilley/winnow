@@ -25,7 +25,7 @@ for path in "/analytics/funnel" "/analytics/_agent-native/actions/get-public-fun
 done
 
 say "== planted submission"
-FORM_ID=$(curl -s -m 30 "$BASE/forms/api/forms/public/talk-to-sales" | python3 -c 'import sys,json; print(json.load(sys.stdin)["form"]["id"])' 2>/dev/null)
+FORM_ID=$(curl -s -m 30 "$BASE/forms/api/forms/public/talk-to-sales" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("form", d)["id"])' 2>/dev/null)
 if [ -z "$FORM_ID" ]; then say "FAIL could not discover form id"; exit 1; fi
 say "form id: $FORM_ID"
 T=$(( $(date +%s) - 15 ))000

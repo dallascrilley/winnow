@@ -257,14 +257,16 @@ export async function callOllama(
       model,
       format: "json",
       stream: false,
+      think: false,
       // Deterministic decoding: a scorer that gives different answers to the
       // same lead twice makes both routing and the U6 eval gate meaningless.
-      options: { temperature: 0 },
+      options: { temperature: 0, num_predict: 256 },
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
     }),
+    signal: AbortSignal.timeout(180_000),
   });
 
   if (!res.ok) {
