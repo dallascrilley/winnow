@@ -16,6 +16,7 @@ export const LEAD_STATUSES = [
   "routed",
   "booked",
   "disqualified",
+  "chain_failed",
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -26,7 +27,7 @@ export const leads = table(
     id: text("id").primaryKey(),
     // Idempotence key: the forms app's response id. Unique so a retried
     // intake event re-enriches the same lead instead of duplicating it.
-    formResponseId: text("form_response_id"),
+    formResponseId: text("form_response_id").unique(),
     email: text("email").notNull(),
     name: text("name"),
     companySize: text("company_size"),
@@ -95,8 +96,9 @@ export const evalCases = table("eval_cases", {
 export const evalRuns = table("eval_runs", {
   id: text("id").primaryKey(),
   model: text("model").notNull(),
-  // Hash of the ICP definition + prompt template, so a score change is
-  // attributable to a specific prompt/model pairing (the visible gate, U6).
+  // Hash of the ICP definition + prompt scaffolding + firmographics data, so
+  // a score change is attributable to a specific prompt/model/data pairing
+  // (the visible gate, U6).
   promptHash: text("prompt_hash").notNull(),
   caseCount: integer("case_count").notNull(),
   passCount: integer("pass_count").notNull(),

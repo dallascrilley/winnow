@@ -42,7 +42,6 @@ export default defineAction({
         id: lead.id,
         status: lead.status,
         name: lead.name,
-        email: lead.email,
         fitScore: lead.fitScore,
         tier: lead.tier,
         segment: lead.segment,

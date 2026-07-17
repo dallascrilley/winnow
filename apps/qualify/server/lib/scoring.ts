@@ -1,10 +1,11 @@
 import type { EnrichmentProfile } from "./enrichment-core.js";
 
 /**
- * ICP scoring via a direct OpenAI API call with structured JSON output —
- * deliberately framework-free (no LangChain): one prompt builder, one strict
- * JSON parser, one pricing table, and an injectable caller so tests never
- * touch the network. This is the "direct-API equivalence" the resume claims.
+ * ICP scoring via a direct LLM API call (Ollama by default, OpenAI optional)
+ * with structured JSON output — deliberately framework-free (no LangChain):
+ * one prompt builder, one strict JSON parser, one pricing table, and an
+ * injectable caller so tests never touch the network. This is the
+ * "direct-API equivalence" the resume claims.
  */
 
 export type Tier = "high" | "medium" | "low";

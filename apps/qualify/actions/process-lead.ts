@@ -8,7 +8,7 @@ import {
   scoreLeadStep,
 } from "../server/lib/chain.js";
 import { trackFunnelEvent } from "../server/lib/funnel-track.js";
-import { appendAudit } from "../server/lib/leads.js";
+import { appendAudit, setLeadStatus } from "../server/lib/leads.js";
 
 /**
  * Cross-app intake entry point (called by the forms app with an A2A JWT).
@@ -29,42 +29,52 @@ export default defineAction({
   }),
   http: { method: "POST" },
   run: async (args) => {
-    const { leadId } = await enrichLeadStep(args);
+    const { leadId, terminal } = await enrichLeadStep(args);
 
-    void (async () => {
-      try {
-        await scoreLeadStep(leadId);
-        const { proposal } = await proposeRoutingStep(leadId);
-        if (proposal.band === "auto") {
-          // Auto-approved leads route immediately; review-band leads wait
-          // for the U5 approval gate.
-          const routed = (await siblingActionFetch("scheduler", "route-lead", {
-            method: "POST",
-            body: { formResponseId: args.formResponseId },
-          })) as {
-            route?: {
-              hostEmail?: string;
-              eventTypeId?: string;
-              matchedRuleId?: string;
+    // A terminal lead (routed/booked/disqualified) came back from a retried
+    // intake — the chain must not re-run or the status machine rewinds.
+    if (!terminal) {
+      void (async () => {
+        try {
+          await scoreLeadStep(leadId);
+          const { proposal } = await proposeRoutingStep(leadId);
+          if (proposal.band === "auto") {
+            // Auto-approved leads route immediately; review-band leads wait
+            // for the U5 approval gate.
+            const routed = (await siblingActionFetch(
+              "scheduler",
+              "route-lead",
+              {
+                method: "POST",
+                body: { formResponseId: args.formResponseId },
+              },
+            )) as {
+              route?: {
+                hostEmail?: string;
+                eventTypeId?: string;
+                matchedRuleId?: string;
+              };
+              idempotent?: boolean;
             };
-            idempotent?: boolean;
-          };
-          if (routed?.route && !routed.idempotent) {
-            trackFunnelEvent("lead_routed", args.formResponseId, {
-              host: routed.route.hostEmail ?? null,
-              eventType: routed.route.eventTypeId ?? null,
-              rule: routed.route.matchedRuleId ?? null,
-            });
+            if (routed?.route && !routed.idempotent) {
+              trackFunnelEvent("lead_routed", args.formResponseId, {
+                eventType: routed.route.eventTypeId ?? null,
+                rule: routed.route.matchedRuleId ?? null,
+              });
+            }
           }
+        } catch (error) {
+          // Keep the state machine honest: a chain that died mid-run (LLM
+          // host down, route-lead throw) must not strand the lead in-flight.
+          await setLeadStatus(leadId, "chain_failed");
+          await appendAudit(leadId, {
+            actor: "system",
+            event: "chain-error",
+            detail: error instanceof Error ? error.message : String(error),
+          });
         }
-      } catch (error) {
-        await appendAudit(leadId, {
-          actor: "system",
-          event: "chain-error",
-          detail: error instanceof Error ? error.message : String(error),
-        });
-      }
-    })();
+      })();
+    }
 
     return { leadId, accepted: true };
   },

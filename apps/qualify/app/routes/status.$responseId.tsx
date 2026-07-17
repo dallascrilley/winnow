@@ -18,7 +18,6 @@ interface AuditEntry {
 interface LeadStatus {
   status: string;
   name: string | null;
-  email: string;
   fitScore: number | null;
   tier: string | null;
   segment: string | null;
@@ -62,13 +61,19 @@ const STAGES = [
   { key: "decision", label: "Decision" },
 ] as const;
 
-const TERMINAL = new Set(["approved", "routed", "booked", "disqualified"]);
+const TERMINAL = new Set([
+  "approved",
+  "routed",
+  "booked",
+  "disqualified",
+  "chain_failed",
+]);
 
 function stageIndex(status: string): number {
   if (status === "new") return 0;
   if (status === "enriching") return 1;
   if (status === "scored") return 2;
-  return 3; // pending_approval, approved, routed, booked, disqualified
+  return 3; // pending_approval, approved, routed, booked, disqualified, chain_failed
 }
 
 function timeLabel(iso: string): string {
@@ -85,7 +90,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
         terminal
-          ? status === "disqualified"
+          ? status === "disqualified" || status === "chain_failed"
             ? "bg-zinc-800 text-zinc-300"
             : "bg-emerald-950 text-emerald-300"
           : "bg-amber-950 text-amber-300"
@@ -270,6 +275,12 @@ export default function LeadStatusPage() {
       {lead?.status === "booked" && (
         <section className="mb-8 rounded-xl border border-emerald-900 bg-emerald-950/40 p-6 text-sm text-emerald-200">
           You&apos;re booked — check your email for the calendar invite.
+        </section>
+      )}
+      {lead?.status === "chain_failed" && (
+        <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-300">
+          Something went wrong on our side while working your request — the team
+          has been notified and will pick it up from here.
         </section>
       )}
 

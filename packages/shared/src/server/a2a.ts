@@ -13,8 +13,9 @@ import { getHeader, type H3Event } from "h3";
 
 /**
  * agent-chat `actionRouteAuth.resolveCaller` implementation. Returning null
- * defers to the session-cookie chain; a present-but-invalid Bearer is a hard
- * 401 (thrown, per core action-routes contract).
+ * defers to the session-cookie chain. `verifyA2AToken` never returns null —
+ * it resolves verification failures to `{ email: null }` — so a claim set
+ * without any identity must be treated as unauthenticated, not as a caller.
  */
 export async function resolveA2ACaller(event: H3Event) {
   const authorization = getHeader(event, "authorization");
@@ -22,10 +23,10 @@ export async function resolveA2ACaller(event: H3Event) {
 
   const token = authorization.slice("Bearer ".length);
   const claims = (await verifyA2AToken(token, event)) as {
-    email?: string;
-    sub?: string;
+    email?: string | null;
+    sub?: string | null;
   } | null;
-  if (!claims) return null;
+  if (!claims?.email && !claims?.sub) return null;
 
   return {
     owner: claims.email ?? claims.sub ?? "a2a-sibling@inbound-demo.test",

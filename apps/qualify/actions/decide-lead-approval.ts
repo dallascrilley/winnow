@@ -63,10 +63,7 @@ export default defineAction({
       channel,
     });
 
-    const route = (await siblingActionFetch("scheduler", "route-lead", {
-      method: "POST",
-      body: { formResponseId: lead.formResponseId },
-    })) as {
+    let route: {
       route?: {
         hostEmail?: string;
         eventTypeId?: string;
@@ -74,9 +71,18 @@ export default defineAction({
       };
       idempotent?: boolean;
     };
+    try {
+      route = (await siblingActionFetch("scheduler", "route-lead", {
+        method: "POST",
+        body: { formResponseId: lead.formResponseId },
+      })) as typeof route;
+    } catch (error) {
+      // Rewind so the pending_approval-only guard above doesn't block a retry.
+      await setLeadStatus(leadId, "pending_approval");
+      throw error;
+    }
     if (route?.route && !route.idempotent && lead.formResponseId) {
       trackFunnelEvent("lead_routed", lead.formResponseId, {
-        host: route.route.hostEmail ?? null,
         eventType: route.route.eventTypeId ?? null,
         rule: route.route.matchedRuleId ?? null,
       });

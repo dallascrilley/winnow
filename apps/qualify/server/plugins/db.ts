@@ -6,7 +6,12 @@ import {
 
 import { schema } from "../db/index.js";
 // Generated from the drizzle-kit .sql output (see migrations-sql.ts header).
-import { initPostgres, initSqlite } from "../db/migrations-sql.js";
+import {
+  addUniqueFormResponseIdPostgres,
+  addUniqueFormResponseIdSqlite,
+  initPostgres,
+  initSqlite,
+} from "../db/migrations-sql.js";
 
 function isDrizzleTable(value: unknown): value is object {
   return (
@@ -26,6 +31,14 @@ const runQualifyMigrations = runMigrations(
       version: 1,
       name: "init-qualify",
       sql: { sqlite: initSqlite, postgres: initPostgres },
+    },
+    {
+      version: 2,
+      name: "add-unique-form-response-id",
+      sql: {
+        sqlite: addUniqueFormResponseIdSqlite,
+        postgres: addUniqueFormResponseIdPostgres,
+      },
     },
   ],
   { table: "qualify_migrations" },

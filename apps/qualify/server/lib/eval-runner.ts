@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { eq } from "@agent-native/core/db/schema";
 
 import { getDb, schema } from "../db/index.js";
@@ -14,10 +16,12 @@ import { trackFunnelEvent } from "./funnel-track.js";
 import { loadIcp } from "./leads.js";
 import {
   bandForScore,
+  buildPrompt,
   PROMPT_RULES,
   scoreIcp,
   SYSTEM_PROMPT,
   type CallLlm,
+  type ScoreInput,
 } from "./scoring.js";
 
 /**
@@ -36,6 +40,28 @@ export interface EvalRunResult {
   totalCostUsd: number;
   results: CaseResult[];
 }
+
+// Fixed stand-in lead hashed into the run id so the promptHash covers
+// buildPrompt's scaffolding and the firmographics data, not just the rules
+// text — a template or seed-data edit must move the gate too.
+const SENTINEL_SCORE_INPUT: ScoreInput = {
+  profile: {
+    domain: "sentinel.example",
+    matched: true,
+    personal: false,
+    companyName: "Sentinel Co",
+    industry: "Software",
+    industryGuessed: false,
+    employees: 120,
+    revenueBand: "$10M-$50M",
+    hq: "Austin, TX",
+    unverified: false,
+    notes: [],
+  },
+  name: "Sam Sentinel",
+  companySize: "51-200",
+  message: "sentinel input for the eval prompt hash",
+};
 
 export async function runEval(options?: {
   callLlm?: CallLlm;
@@ -94,9 +120,18 @@ export async function runEval(options?: {
   }
 
   const summary = summarize(results);
+  const firmographicsRows = (await db.select().from(schema.firmographics)).sort(
+    (a, b) => a.domain.localeCompare(b.domain),
+  );
   const promptHash = promptHashFor(
     icp,
-    `${SYSTEM_PROMPT}\n${PROMPT_RULES.join("\n")}`,
+    [
+      `${SYSTEM_PROMPT}\n${PROMPT_RULES.join("\n")}`,
+      buildPrompt(icp, SENTINEL_SCORE_INPUT),
+      createHash("sha256")
+        .update(JSON.stringify(firmographicsRows))
+        .digest("hex"),
+    ].join("\n"),
     cases,
   );
   const runId = runIdFor(model, promptHash);
