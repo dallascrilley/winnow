@@ -1,0 +1,12 @@
+[build]
+command = "export DATABASE_URL=\"${NETLIFY_DATABASE_URL:-$DATABASE_URL}\" && APP_BASE_PATH=/scheduler VITE_APP_BASE_PATH=/scheduler NITRO_PRESET=netlify pnpm --filter scheduler build"
+publish = "apps/scheduler/dist"
+functions = "apps/scheduler/.netlify/functions-internal"
+
+[build.environment]
+GA_MEASUREMENT_ID = "G-ESF7FYXGN9"
+  NITRO_PRESET = "netlify"
+  NPM_CONFIG_PRODUCTION = "false"
+
+  APP_BASE_PATH = "/scheduler"
+  VITE_APP_BASE_PATH = "/scheduler"
