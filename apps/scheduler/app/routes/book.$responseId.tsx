@@ -73,7 +73,7 @@ export default function BookPage() {
     if (!responseId) return;
     const base = apiBase();
     void (async () => {
-      let data;
+      let data: { found?: boolean; route?: RouteInfo } | undefined;
       try {
         const res = await fetch(
           `${base}/_agent-native/actions/get-route?responseId=${encodeURIComponent(responseId)}`,
