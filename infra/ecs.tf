@@ -85,10 +85,20 @@ resource "aws_ecs_task_definition" "app" {
     cpu_architecture        = "ARM64"
   }
 
+  lifecycle {
+    precondition {
+      condition = var.bootstrap_images || (
+        startswith(var.app_image_ref, "${aws_ecr_repository.app.repository_url}@sha256:") &&
+        startswith(var.ollama_image_ref, "${aws_ecr_repository.ollama.repository_url}@sha256:")
+      )
+      error_message = "Running ECS requires immutable refs from this stack's app and Ollama ECR repositories. Use bootstrap_images=true only while ECS is scaled to zero before the first push."
+    }
+  }
+
   container_definitions = jsonencode([
     {
       name      = "app"
-      image     = "${aws_ecr_repository.app.repository_url}:latest"
+      image     = local.app_image_ref
       essential = true
       portMappings = [{
         containerPort = 8080
@@ -98,6 +108,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "WORKSPACE_PORT", value = "8080" },
         { name = "WORKSPACE_PUBLIC_PREFIX", value = var.public_prefix },
         { name = "WORKSPACE_GATEWAY_URL", value = "http://127.0.0.1:8080" },
+        { name = "DATABASE_SSLMODE", value = "require" },
         { name = "APP_URL", value = local.public_url },
         { name = "BETTER_AUTH_URL", value = local.public_url },
         { name = "PUBLIC_URL", value = local.public_url },
@@ -131,7 +142,7 @@ resource "aws_ecs_task_definition" "app" {
     },
     {
       name      = "ollama"
-      image     = "${aws_ecr_repository.ollama.repository_url}:latest"
+      image     = local.ollama_image_ref
       essential = false
       # Model is baked into the image at build time (scripts/push-images.sh);
       # qwen3:4b Q4 needs ~4 GB of the task's 8 GB.
@@ -155,7 +166,7 @@ resource "aws_ecs_service" "app" {
   name            = local.name
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1
+  desired_count   = var.bootstrap_images ? 0 : 1
   launch_type     = "FARGATE"
 
   network_configuration {

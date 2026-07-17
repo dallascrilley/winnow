@@ -15,6 +15,8 @@ import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 
+import { buildDatabaseUrl } from "./lib/database-url.mjs";
+
 const ROOT = path.resolve(import.meta.dirname, "..");
 const APPS = [
   { id: "analytics", port: 8100 },
@@ -26,13 +28,14 @@ const APPS = [
 const GATEWAY_PORT = Number(process.env.WORKSPACE_PORT ?? 8080);
 const PREFIX = (process.env.WORKSPACE_PUBLIC_PREFIX ?? "").replace(/\/$/, "");
 const DB_BASE = process.env.DATABASE_URL_BASE; // e.g. postgres://u:p@host:5432
+const DB_SSLMODE = process.env.DATABASE_SSLMODE ?? "require";
 
 // RDS starts with only the master `postgres` database — create one database
 // per app before anything boots. App db plugins then apply their own
 // migrations on first connection.
 if (DB_BASE) {
   const { default: postgres } = await import("postgres");
-  const sql = postgres(`${DB_BASE}/postgres?sslmode=require`, {
+  const sql = postgres(buildDatabaseUrl(DB_BASE, "postgres", DB_SSLMODE), {
     max: 1,
     connect_timeout: 20,
   });
@@ -67,8 +70,13 @@ for (const app of APPS) {
     APP_BASE_PATH: `/${app.id}`,
     VITE_APP_BASE_PATH: `/${app.id}`,
   };
-  if (DB_BASE)
-    env.DATABASE_URL = `${DB_BASE}/inbound_${app.id}?sslmode=require`;
+  if (DB_BASE) {
+    env.DATABASE_URL = buildDatabaseUrl(
+      DB_BASE,
+      `inbound_${app.id}`,
+      DB_SSLMODE,
+    );
+  }
   const child = spawn("node", [entry], {
     env,
     stdio: ["ignore", "pipe", "pipe"],

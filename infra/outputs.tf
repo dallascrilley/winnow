@@ -1,9 +1,9 @@
 output "app_image" {
-  value = "${aws_ecr_repository.app.repository_url}:latest"
+  value = local.app_image_ref
 }
 
 output "ollama_image" {
-  value = "${aws_ecr_repository.ollama.repository_url}:latest"
+  value = local.ollama_image_ref
 }
 
 output "alb_dns_name" {
