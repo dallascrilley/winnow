@@ -65,11 +65,22 @@ if [[ ! "$app_image_ref" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-
   exit 1
 fi
 
+app_git_sha=$(aws ssm get-parameter \
+  --name "$PARAMETER_PREFIX/APP_GIT_SHA" \
+  --region "$region" \
+  --query Parameter.Value \
+  --output text)
+if [[ ! "$app_git_sha" =~ ^[0-9a-f]{40}$ ]] || [[ "$app_git_sha" == "0000000000000000000000000000000000000000" ]]; then
+  echo "app source identity is not deployed" >&2
+  exit 1
+fi
+
 registry="$account_id.dkr.ecr.$region.amazonaws.com"
 aws ecr get-login-password --region "$region" \
   | docker login --username AWS --password-stdin "$registry" >/dev/null
 
 export APP_IMAGE_REF="$app_image_ref"
+export APP_GIT_SHA="$app_git_sha"
 export AWS_REGION="$region"
 export ORIGIN_ADDRESS="${INBOUND_LITE_ORIGIN_ADDRESS:?INBOUND_LITE_ORIGIN_ADDRESS is required}"
 export PUBLIC_URL="${INBOUND_LITE_PUBLIC_URL:?INBOUND_LITE_PUBLIC_URL is required}"
@@ -85,6 +96,7 @@ fi
 
 {
   printf 'APP_IMAGE_REF=%s\n' "$APP_IMAGE_REF"
+  printf 'APP_GIT_SHA=%s\n' "$APP_GIT_SHA"
   printf 'AWS_REGION=%s\n' "$AWS_REGION"
   printf 'ORIGIN_ADDRESS=%s\n' "$ORIGIN_ADDRESS"
   printf 'PUBLIC_URL=%s\n' "$PUBLIC_URL"

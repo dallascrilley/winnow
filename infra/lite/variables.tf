@@ -64,6 +64,17 @@ variable "initial_app_image_ref" {
   }
 }
 
+variable "initial_app_git_sha" {
+  description = "Initial source identity for backup manifests. push-image.sh owns later updates."
+  type        = string
+  default     = "0000000000000000000000000000000000000000"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{40}$", var.initial_app_git_sha))
+    error_message = "initial_app_git_sha must be a full lowercase Git SHA."
+  }
+}
+
 variable "monthly_budget_usd" {
   description = "Monthly cost ceiling used for the project-tagged AWS Budget."
   type        = number

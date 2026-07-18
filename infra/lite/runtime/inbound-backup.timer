@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Inbound synthetic golden-state backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+RandomizedDelaySec=900
+Unit=inbound-backup.service
+
+[Install]
+WantedBy=timers.target

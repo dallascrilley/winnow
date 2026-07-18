@@ -48,6 +48,7 @@ data "aws_iam_policy_document" "origin_runtime" {
       aws_ssm_parameter.a2a_secret.arn,
       aws_ssm_parameter.analytics_public_key.arn,
       aws_ssm_parameter.app_image_ref.arn,
+      aws_ssm_parameter.app_git_sha.arn,
     ], aws_ssm_parameter.openai_api_key[*].arn)
   }
 
@@ -59,6 +60,22 @@ data "aws_iam_policy_document" "origin_runtime" {
       "logs:PutLogEvents",
     ]
     resources = ["${aws_cloudwatch_log_group.runtime.arn}:*"]
+  }
+
+  statement {
+    sid = "ReadWriteGoldenState"
+    actions = [
+      "s3:AbortMultipartUpload",
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = ["${aws_s3_bucket.backup.arn}/${local.backup_prefix}/*"]
+  }
+
+  statement {
+    sid       = "ReadRuntimeAssets"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.backup.arn}/${local.runtime_prefix}/runtime-bundle.zip"]
   }
 }
 

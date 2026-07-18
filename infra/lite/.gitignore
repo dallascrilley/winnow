@@ -6,3 +6,4 @@
 *.tfvars
 backend.hcl
 wake-handler.zip
+runtime-bundle.zip

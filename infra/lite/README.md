@@ -12,6 +12,8 @@ review pass.
 INBOUND_LITE_PLAN_JSON=/tmp/inbound-lite-plan.json node --test infra/lite/policy.test.mjs
 node --test infra/lite/state-bootstrap/policy.test.mjs
 node --test infra/lite/wake/handler.test.mjs
+node --test scripts/verify-golden-state.test.mjs
+./scripts/golden-state-recovery.test.sh
 AWS_REGION=us-east-1 ORIGIN_ADDRESS=inbound-origin.dallascrilley.com \
   PUBLIC_URL=https://inbound-origin.dallascrilley.com \
   APP_IMAGE_REF=example.invalid/inbound@sha256:$(printf '0%.0s' {1..64}) \
@@ -38,6 +40,18 @@ dependency-version control is required.
 Docker restart policies handle crashes. A one-minute systemd health timer also
 repairs an intentionally stopped app container by restarting the Compose unit;
 the live U4 proof must measure that recovery path after apply.
+
+The U5 recovery path stores five custom-format PostgreSQL dumps in the private,
+versioned backup bucket. `inbound-backup.timer` runs daily while the host is
+awake, and the runtime unit attempts one final backup before Compose stops.
+`latest.json` changes only after every archive and row-count checksum is written.
+Restore validates the complete package before it can replace the five synthetic
+databases, and requires the explicit
+`RESTORE_CONFIRM=replace-synthetic-databases` guard. See
+`docs/receipts/golden-state-recovery.md`. Never run this path against real
+visitor, customer, or private Builder data. Backup also requires the
+`synthetic-demo-only` classification and rejects email-like values outside
+reserved demo domains across public text/JSON columns.
 
 Generated SSM values are sensitive Terraform state. The active partial S3
 backend in `backend.tf` requires encrypted remote state and native lockfiles for

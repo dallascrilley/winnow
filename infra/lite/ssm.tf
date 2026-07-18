@@ -62,6 +62,16 @@ resource "aws_ssm_parameter" "app_image_ref" {
   }
 }
 
+resource "aws_ssm_parameter" "app_git_sha" {
+  name  = "/${local.name}/APP_GIT_SHA"
+  type  = "String"
+  value = var.initial_app_git_sha
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
 resource "aws_ssm_parameter" "openai_api_key" {
   count = var.openai_api_key == "" ? 0 : 1
   name  = "/${local.name}/OPENAI_API_KEY"

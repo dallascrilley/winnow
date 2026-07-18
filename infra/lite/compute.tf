@@ -4,19 +4,27 @@ data "aws_ssm_parameter" "al2023_arm64_ami" {
 
 locals {
   runtime_files = {
-    "/opt/inbound-lite/compose.yaml"      = base64encode(file("${path.module}/runtime/compose.yaml"))
-    "/opt/inbound-lite/Caddyfile"         = base64encode(file("${path.module}/runtime/Caddyfile"))
-    "/opt/inbound-lite/app-entrypoint.sh" = base64encode(file("${path.module}/runtime/app-entrypoint.sh"))
-    "/opt/inbound-lite/deploy.sh"         = base64encode(file("${path.module}/deploy.sh"))
-    "/opt/inbound-lite/healthcheck.sh"    = base64encode(file("${path.module}/runtime/healthcheck.sh"))
-    "/etc/inbound-lite/config.env" = base64encode(join("\n", [
+    "/opt/inbound-lite/compose.yaml"            = file("${path.module}/runtime/compose.yaml")
+    "/opt/inbound-lite/Caddyfile"               = file("${path.module}/runtime/Caddyfile")
+    "/opt/inbound-lite/app-entrypoint.sh"       = file("${path.module}/runtime/app-entrypoint.sh")
+    "/opt/inbound-lite/deploy.sh"               = file("${path.module}/deploy.sh")
+    "/opt/inbound-lite/healthcheck.sh"          = file("${path.module}/runtime/healthcheck.sh")
+    "/opt/inbound-lite/backup-golden-state.sh"  = file("${path.module}/../../scripts/backup-golden-state.sh")
+    "/opt/inbound-lite/restore-golden-state.sh" = file("${path.module}/../../scripts/restore-golden-state.sh")
+    "/opt/inbound-lite/verify-golden-state.mjs" = file("${path.module}/../../scripts/verify-golden-state.mjs")
+    "/etc/inbound-lite/config.env" = join("\n", [
       "INBOUND_LITE_ORIGIN_ADDRESS=${var.origin_hostname}",
       "INBOUND_LITE_PUBLIC_URL=https://${var.origin_hostname}",
+      "BACKUP_BUCKET=${aws_s3_bucket.backup.bucket}",
+      "BACKUP_PREFIX=${local.backup_prefix}",
+      "BACKUP_DATA_CLASSIFICATION=synthetic-demo-only",
       "",
-    ]))
-    "/etc/systemd/system/inbound-lite.service"        = base64encode(file("${path.module}/runtime/inbound-lite.service"))
-    "/etc/systemd/system/inbound-lite-health.service" = base64encode(file("${path.module}/runtime/inbound-lite-health.service"))
-    "/etc/systemd/system/inbound-lite-health.timer"   = base64encode(file("${path.module}/runtime/inbound-lite-health.timer"))
+    ])
+    "/etc/systemd/system/inbound-lite.service"        = file("${path.module}/runtime/inbound-lite.service")
+    "/etc/systemd/system/inbound-lite-health.service" = file("${path.module}/runtime/inbound-lite-health.service")
+    "/etc/systemd/system/inbound-lite-health.timer"   = file("${path.module}/runtime/inbound-lite-health.timer")
+    "/etc/systemd/system/inbound-backup.service"      = file("${path.module}/runtime/inbound-backup.service")
+    "/etc/systemd/system/inbound-backup.timer"        = file("${path.module}/runtime/inbound-backup.timer")
   }
 }
 
@@ -30,7 +38,11 @@ resource "aws_instance" "origin" {
   monitoring                           = false
   instance_initiated_shutdown_behavior = "stop"
 
-  user_data                   = templatefile("${path.module}/user-data.sh.tftpl", { runtime_files = local.runtime_files })
+  user_data = templatefile("${path.module}/user-data.sh.tftpl", {
+    aws_region     = var.aws_region
+    runtime_bucket = aws_s3_bucket.backup.bucket
+    runtime_key    = aws_s3_object.runtime.key
+  })
   user_data_replace_on_change = false
 
   metadata_options {
@@ -73,5 +85,6 @@ resource "aws_instance" "origin" {
   depends_on = [
     aws_iam_role_policy.origin_runtime,
     aws_iam_role_policy_attachment.ssm_core,
+    aws_s3_object.runtime,
   ]
 }

@@ -16,6 +16,11 @@ output "app_repository_url" {
   value = aws_ecr_repository.app.repository_url
 }
 
+output "backup_bucket_name" {
+  description = "Private versioned bucket used only for synthetic golden-state packages."
+  value       = aws_s3_bucket.backup.bucket
+}
+
 output "monthly_cost_formula" {
   value = "fixed: 30 GiB gp3 + 1 public IPv4; variable: ${var.instance_type} running hours + low-volume serverless/storage usage"
 }

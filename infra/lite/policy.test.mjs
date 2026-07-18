@@ -13,6 +13,10 @@ const plan = JSON.parse(readFileSync(planPath, "utf8"));
 const resources = plan.planned_values?.root_module?.resources ?? [];
 const changes = plan.resource_changes ?? [];
 const iamSource = readFileSync(new URL("./iam.tf", import.meta.url), "utf8");
+const backupSource = readFileSync(
+  new URL("./backup.tf", import.meta.url),
+  "utf8",
+);
 const userDataSources = [
   "./compute.tf",
   "./user-data.sh.tftpl",
@@ -24,6 +28,11 @@ const userDataSources = [
   "./runtime/inbound-lite.service",
   "./runtime/inbound-lite-health.service",
   "./runtime/inbound-lite-health.timer",
+  "./runtime/inbound-backup.service",
+  "./runtime/inbound-backup.timer",
+  "../../scripts/backup-golden-state.sh",
+  "../../scripts/restore-golden-state.sh",
+  "../../scripts/verify-golden-state.mjs",
 ]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
   .join("\n");
@@ -81,6 +90,63 @@ test("replay table is encrypted, TTL-backed, and request-priced", () => {
   assert.equal(table.server_side_encryption[0].enabled, true);
 });
 
+test("golden-state bucket is private, versioned, encrypted, and recovery-bounded", () => {
+  const bucket = resource("aws_s3_bucket.backup");
+  assert.match(bucket.bucket, /^inbound-lite-golden-state-[0-9]{12}$/);
+  assert.equal(bucket.force_destroy, false);
+  assert.equal(
+    resource("aws_s3_bucket_versioning.backup").versioning_configuration[0]
+      .status,
+    "Enabled",
+  );
+  assert.equal(
+    resource("aws_s3_bucket_server_side_encryption_configuration.backup")
+      .rule[0].apply_server_side_encryption_by_default[0].sse_algorithm,
+    "AES256",
+  );
+  assert.deepEqual(resource("aws_s3_bucket_public_access_block.backup"), {
+    block_public_acls: true,
+    block_public_policy: true,
+    ignore_public_acls: true,
+    restrict_public_buckets: true,
+  });
+  assert.equal(
+    resource("aws_s3_bucket_ownership_controls.backup").rule[0]
+      .object_ownership,
+    "BucketOwnerEnforced",
+  );
+  const lifecycleRules = resource(
+    "aws_s3_bucket_lifecycle_configuration.backup",
+  ).rule;
+  assert.deepEqual(lifecycleRules.map((rule) => rule.id).sort(), [
+    "expire-noncurrent-golden-state",
+    "expire-noncurrent-runtime-bundle",
+  ]);
+  assert.ok(
+    lifecycleRules.every(
+      (rule) => rule.noncurrent_version_expiration[0].noncurrent_days === 30,
+    ),
+  );
+  const runtimeBundle = resource("aws_s3_object.runtime");
+  assert.equal(runtimeBundle.key, "runtime/runtime-bundle.zip");
+  assert.equal(runtimeBundle.server_side_encryption, "AES256");
+  assert.match(iamSource, /sid\s*=\s*"ReadWriteGoldenState"/);
+  assert.ok(
+    iamSource.includes(
+      'resources = ["${aws_s3_bucket.backup.arn}/${local.backup_prefix}/*"]',
+    ),
+  );
+  assert.ok(
+    iamSource.includes(
+      'resources = ["${aws_s3_bucket.backup.arn}/${local.runtime_prefix}/runtime-bundle.zip"]',
+    ),
+  );
+  assert.doesNotMatch(iamSource, /s3:DeleteObject|s3:ListAllMyBuckets/);
+  assert.match(backupSource, /sid\s*=\s*"DenyInsecureTransport"/);
+  assert.match(backupSource, /variable\s*=\s*"aws:SecureTransport"/);
+  assert.match(backupSource, /values\s*=\s*\["false"\]/);
+});
+
 test("lifecycle IAM controls only the planned tagged instance and named schedule", () => {
   assert.ok(
     resources.some((item) => item.address === "aws_iam_role_policy.wake"),
@@ -129,6 +195,11 @@ test("user-data inputs contain no secret value or concrete AWS identifier", () =
   assert.match(
     userDataSources,
     /systemctl enable --now inbound-lite-health\.timer/,
+  );
+  assert.match(userDataSources, /systemctl enable --now inbound-backup\.timer/);
+  assert.match(
+    userDataSources,
+    /ExecStop=-\/opt\/inbound-lite\/backup-golden-state\.sh/,
   );
 });
 

@@ -2,7 +2,7 @@
 date: 2026-07-17
 origin: docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md
 td_epic: td-af0109
-td_units: [td-48285e, td-f93367]
+td_units: [td-48285e, td-f93367, td-fff5cd]
 ---
 
 # Inbound Dual-Profile AWS Architecture
@@ -68,6 +68,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-17 23:17Z) Completed the no-apply U4 construction slice: independent 38-resource lite plan, authenticated/replay-safe wake controller, one renewable stop schedule, t4g.medium/30 GB gp3/EIP host, SSM-only access, 80/443-only ingress, Compose runtime, HTTPS Caddy config, first-boot auto-stop, container repair timer, provider lock, and $10 tagged budget. Terraform validation, 7 plan-policy tests, 12 controller tests, ShellCheck, scoped formatting, and Compose config pass. No AWS lite, DNS, or Cloudflare resource was created. Apply remains gated by `td-20a91a`, `td-2ad88f`, funded hosted inference, and live smoke.
 - [x] (2026-07-18 07:06Z) Completed the no-apply portion of `td-2ad88f`: a separate seven-resource state-bootstrap plan creates one deterministic S3 bucket with SSE-S3, versioning, a 90-day recovery window, Block Public Access, Bucket Owner Enforced ownership, TLS enforcement, and exact IAM operator-principal access. The lite root now requires encrypted native S3 locking for normal operations; a disposable wrapper preserves the 38-add local review plan without weakening that backend gate. No bucket, backend state, or AWS lite resource was created.
 - [x] (2026-07-18 07:30Z) Closed the local `td-20a91a` dependency gate through the supported Agent Native upgrade path: core `0.109.2`, Dispatch `0.15.0`, scaffold skills, and `better-auth 1.6.16`. Removed the stale workspace override that forced `better-auth 1.6.0`; high-threshold audit now exits 0 with zero high/critical advisories. Workspace typecheck, 1,045 tests, and all five production builds pass after updating one Analytics provider-metadata expectation to the new OAuth-or-key contract.
+- [x] (2026-07-18 09:30Z) Completed U5 local/no-apply construction: private versioned SSE-S3 backup resources, prefix-scoped non-delete instance IAM, daily and graceful-stop systemd hooks, five-database custom dumps, committed-last manifest, fail-closed restore validation, and a disposable PostgreSQL corruption/restore test. The latest valid restore completed in 29 seconds; no AWS resource was created. Live S3/EC2 recovery proof remains gated with the lite apply.
 - [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
 - [ ] U5. Make synthetic state portable and recovery-tested.
 - [ ] U6. Turn the standard profile into a bounded proof/interview mode.
