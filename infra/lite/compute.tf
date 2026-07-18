@@ -67,7 +67,7 @@ resource "aws_instance" "origin" {
   # cause an implicit host replacement that deletes the root PostgreSQL volume.
   # Runtime updates use SSM; an intentional replacement requires a fresh backup.
   lifecycle {
-    ignore_changes = [ami, user_data]
+    ignore_changes = [ami, user_data, associate_public_ip_address]
 
     precondition {
       condition = (

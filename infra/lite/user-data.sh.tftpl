@@ -6,7 +6,9 @@ set -euo pipefail
 # renewable stop lease.
 trap 'shutdown -h now || true' EXIT
 
-dnf install -y awscli2 curl docker jq unzip
+command -v aws >/dev/null
+command -v curl >/dev/null
+dnf install -y docker jq unzip
 export AWS_REGION='${aws_region}'
 
 install -d -m 0755 /usr/local/lib/docker/cli-plugins /opt/inbound-lite /etc/inbound-lite

@@ -19,6 +19,7 @@ const backupSource = readFileSync(
 );
 const userDataSources = [
   "./compute.tf",
+  "./ssm.tf",
   "./user-data.sh.tftpl",
   "./deploy.sh",
   "./runtime/compose.yaml",
@@ -60,6 +61,10 @@ test("host uses the bounded ARM64 size, encrypted gp3, and IMDSv2", () => {
   assert.equal(instance.root_block_device[0].volume_size, 30);
   assert.equal(instance.key_name ?? null, null);
   assert.equal(instance.user_data_replace_on_change, false);
+  assert.match(
+    userDataSources,
+    /ignore_changes = \[ami, user_data, associate_public_ip_address\]/,
+  );
 });
 
 test("security group exposes only HTTP and HTTPS", () => {
@@ -183,6 +188,17 @@ test("user-data inputs contain no secret value or concrete AWS identifier", () =
     /OPENAI_API_KEY=[^$]|BETTER_AUTH_SECRET=[^$]|A2A_SECRET=[^$]/,
   );
   assert.match(userDataSources, /trap 'shutdown -h now \|\| true' EXIT/);
+  assert.doesNotMatch(userDataSources, /\bawscli2\b/);
+  assert.match(userDataSources, /command -v aws >\/dev\/null/);
+  assert.match(userDataSources, /command -v curl >\/dev\/null/);
+  assert.match(userDataSources, /dnf install -y docker jq unzip/);
+  assert.doesNotMatch(userDataSources, /dnf install -y[^\n]*\bcurl\b/);
+  assert.doesNotMatch(userDataSources, /--output text > "\$output"/);
+  assert.match(userDataSources, /printf '%s' "\$parameter_value" > "\$output"/);
+  assert.match(
+    userDataSources,
+    /resource "aws_ssm_parameter" "openai_api_key"[\s\S]*?ignore_changes = \[value\]/,
+  );
   assert.match(userDataSources, /--env-file \/run\/inbound-lite\/runtime\.env/);
   assert.equal(
     plan.variables.origin_hostname.value,

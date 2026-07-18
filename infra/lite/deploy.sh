@@ -32,16 +32,19 @@ umask 077
 read_parameter_to_file() {
   local name="$1"
   local output="$SECRETS_DIR/$name"
-  aws ssm get-parameter \
+  local parameter_value
+  parameter_value=$(aws ssm get-parameter \
     --name "$PARAMETER_PREFIX/$name" \
     --with-decryption \
     --region "$region" \
     --query Parameter.Value \
-    --output text > "$output"
-  if [[ ! -s "$output" || "$(<"$output")" == "None" ]]; then
+    --output text)
+  if [[ -z "$parameter_value" || "$parameter_value" == "None" ]]; then
     echo "required runtime parameter is unavailable: $name" >&2
     exit 1
   fi
+  printf '%s' "$parameter_value" > "$output"
+  unset parameter_value
   chmod 0400 "$output"
 }
 
