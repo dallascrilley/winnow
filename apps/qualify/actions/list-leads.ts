@@ -23,6 +23,7 @@ export default defineAction({
         fitScore: schema.leads.fitScore,
         tier: schema.leads.tier,
         segment: schema.leads.segment,
+        scoreReasoning: schema.leads.scoreReasoning,
         llmCostUsd: schema.leads.llmCostUsd,
         createdAt: schema.leads.createdAt,
       })
