@@ -8,11 +8,9 @@ review pass.
 ## Local proof (no AWS resources created)
 
 ```bash
-terraform -chdir=infra/lite init
-terraform -chdir=infra/lite validate
-terraform -chdir=infra/lite plan -out=lite.tfplan
-terraform -chdir=infra/lite show -json lite.tfplan > /tmp/inbound-lite-plan.json
+./infra/lite/local-plan.sh /tmp/inbound-lite-plan.json
 INBOUND_LITE_PLAN_JSON=/tmp/inbound-lite-plan.json node --test infra/lite/policy.test.mjs
+node --test infra/lite/state-bootstrap/policy.test.mjs
 node --test infra/lite/wake/handler.test.mjs
 AWS_REGION=us-east-1 ORIGIN_ADDRESS=inbound-origin.dallascrilley.com \
   PUBLIC_URL=https://inbound-origin.dallascrilley.com \
@@ -41,10 +39,14 @@ Docker restart policies handle crashes. A one-minute systemd health timer also
 repairs an intentionally stopped app container by restarting the Compose unit;
 the live U4 proof must measure that recovery path after apply.
 
-Generated SSM values are sensitive Terraform state. Before any apply, move this
-root to an encrypted, access-controlled state backend or explicitly accept and
-protect local state as credential material. State files are ignored, never
-committed, and must be destroyed or rotated with the stack.
+Generated SSM values are sensitive Terraform state. The active partial S3
+backend in `backend.tf` requires encrypted remote state and native lockfiles for
+normal operations. Before the approved first apply, follow
+`state-bootstrap/README.md` to create the private, versioned, exact-principal
+bucket and render the ignored `backend.hcl`. `local-plan.sh` is the only
+pre-bootstrap path: it plans from a disposable copy without `backend.tf` and
+cannot create resources. State and backend configuration files are ignored,
+never committed, and must be destroyed or rotated with the stack.
 
 The budget is created at `$10` by default. Set `budget_notification_email` only
 as an explicit operator choice; the blank bootstrap default intentionally sends
