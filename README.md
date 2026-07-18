@@ -85,16 +85,17 @@ in-process, so workspace siblings compose over HTTP. Environments: local dev
 Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
 DNS.
 
+The standard profile is now one bounded operator workflow. Its safe default is
+a no-AWS dry run:
+
 ```bash
-cd infra && terraform init
-terraform apply -var bootstrap_images=true      # first run only: create repos, ECS stays at zero
-cd .. && infra/push-images.sh                    # build + push app & ollama images
-terraform -chdir=infra apply                     # deploy generated immutable refs
-# seed once the service is healthy:
-aws ecs execute-command --cluster inbound-demo --task <task-id> --container app \
-  --interactive --command "node scripts/prod-seed.mjs"
-./scripts/smoke.sh https://inbound-standard-origin.dallascrilley.com/inbound
+./infra/proof-standard.sh --dry-run
 ```
+
+The cost-incurring `--execute` mode requires an explicit confirmation, runs a
+fresh seed and offline eval, uses immutable images, and defaults to verified
+teardown. See [`infra/README.md`](infra/README.md) for the live operator gate,
+24-hour interview mode, automatic cleanup behavior, and receipt contract.
 
 DNS is the one operator step: no available Cloudflare credential can see the
 zone, so `terraform output dns_records_to_create` prints the ACM validation

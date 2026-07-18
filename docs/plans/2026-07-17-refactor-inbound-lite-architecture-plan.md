@@ -2,7 +2,7 @@
 date: 2026-07-17
 origin: docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md
 td_epic: td-af0109
-td_units: [td-48285e, td-f93367, td-fff5cd]
+td_units: [td-48285e, td-f93367, td-fff5cd, td-5588ef]
 ---
 
 # Inbound Dual-Profile AWS Architecture
@@ -69,6 +69,7 @@ inbound-standard-origin.dallascrilley.com/inbound
 - [x] (2026-07-18 07:06Z) Completed the no-apply portion of `td-2ad88f`: a separate seven-resource state-bootstrap plan creates one deterministic S3 bucket with SSE-S3, versioning, a 90-day recovery window, Block Public Access, Bucket Owner Enforced ownership, TLS enforcement, and exact IAM operator-principal access. The lite root now requires encrypted native S3 locking for normal operations; a disposable wrapper preserves the 38-add local review plan without weakening that backend gate. No bucket, backend state, or AWS lite resource was created.
 - [x] (2026-07-18 07:30Z) Closed the local `td-20a91a` dependency gate through the supported Agent Native upgrade path: core `0.109.2`, Dispatch `0.15.0`, scaffold skills, and `better-auth 1.6.16`. Removed the stale workspace override that forced `better-auth 1.6.0`; high-threshold audit now exits 0 with zero high/critical advisories. Workspace typecheck, 1,045 tests, and all five production builds pass after updating one Analytics provider-metadata expectation to the new OAuth-or-key contract.
 - [x] (2026-07-18 09:30Z) Completed U5 local/no-apply construction: private versioned SSE-S3 backup resources, prefix-scoped non-delete instance IAM, daily and graceful-stop systemd hooks, five-database custom dumps, committed-last manifest, fail-closed restore validation, and a disposable PostgreSQL corruption/restore test. The latest valid restore completed in 29 seconds; no AWS resource was created. Live S3/EC2 recovery proof remains gated with the lite apply.
+- [x] (2026-07-18 12:55Z) Completed the U6 local/no-AWS construction under `td-5588ef`: an explicit dry-run/execute operator workflow, failure-path default teardown, separately confirmed 24-hour interview retention, fresh one-off `qwen3:4b` eval marker, lite-resource fingerprint guard, zero-residual inventory checks, and a strict sanitized receipt schema. Ten focused tests pass without invoking AWS. No live standard proof or receipt is claimed; the cost-incurring apply-to-destroy rehearsal remains operator-gated.
 - [ ] U4. Build and prove the hibernating lite EC2 profile and wake control plane.
 - [ ] U5. Make synthetic state portable and recovery-tested.
 - [ ] U6. Turn the standard profile into a bounded proof/interview mode.
