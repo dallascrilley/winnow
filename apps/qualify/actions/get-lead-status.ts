@@ -6,6 +6,47 @@ import { getDb, schema } from "../server/db/index.js";
 import { issueJourneyToken } from "../server/lib/journey-token.js";
 import { parseAudit } from "../server/lib/leads.js";
 
+const PUBLIC_AUDIT_EVENTS: Record<string, string> = {
+  "lead-created": "Request received",
+  enriched: "Company researched",
+  scored: "Fit assessed",
+  "routing-proposed": "Routing prepared",
+  approved: "Approved",
+  rejected: "Reviewed",
+};
+
+function publicAudit(raw: string | null) {
+  return parseAudit(raw).flatMap((entry) => {
+    if (typeof entry.at !== "string") return [];
+    return [
+      {
+        at: entry.at,
+        actor:
+          entry.actor === "agent" || entry.actor === "human"
+            ? entry.actor
+            : "system",
+        event: PUBLIC_AUDIT_EVENTS[entry.event] ?? "Status updated",
+      },
+    ];
+  });
+}
+
+function publicProposal(raw: string | null) {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    const { eventTypeSlug } = parsed as { eventTypeSlug?: unknown };
+    return eventTypeSlug === "discovery" || eventTypeSlug === "deep-dive"
+      ? { eventTypeSlug }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Anonymous, capability-keyed read for the public status page. The forms
  * response id (a nanoid the submitter receives via redirect) is the lookup
@@ -35,12 +76,9 @@ export default defineAction({
         fitScore: schema.leads.fitScore,
         tier: schema.leads.tier,
         segment: schema.leads.segment,
-        scoreReasoning: schema.leads.scoreReasoning,
         proposal: schema.leads.proposal,
-        enrichment: schema.leads.enrichment,
         audit: schema.leads.audit,
         createdAt: schema.leads.createdAt,
-        updatedAt: schema.leads.updatedAt,
       })
       .from(schema.leads)
       .where(eq(schema.leads.formResponseId, responseId))
@@ -73,12 +111,9 @@ export default defineAction({
         fitScore: lead.fitScore,
         tier: lead.tier,
         segment: lead.segment,
-        scoreReasoning: lead.scoreReasoning,
-        proposal: lead.proposal ? JSON.parse(lead.proposal) : null,
-        enrichment: lead.enrichment ? JSON.parse(lead.enrichment) : null,
-        audit: parseAudit(lead.audit),
+        proposal: publicProposal(lead.proposal),
+        audit: publicAudit(lead.audit),
         createdAt: lead.createdAt,
-        updatedAt: lead.updatedAt,
         journeyToken,
       },
     };

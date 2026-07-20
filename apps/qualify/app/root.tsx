@@ -159,16 +159,8 @@ function AppContent() {
   );
 }
 
-export default function Root() {
-  const { pathname } = useLocation();
+function AuthenticatedRoot() {
   const [queryClient] = useState(() => createAgentNativeQueryClient());
-
-  // The public status route has no session-bound controls or query state. Keep
-  // it out of the authenticated app shell so gateway visitors can hydrate the
-  // actual status surface instead of the workspace chrome.
-  if (/\/status\/[^/]+\/?$/.test(pathname)) {
-    return <Outlet />;
-  }
   return (
     <AppToolkitProvider>
       <AppProviders queryClient={queryClient} i18n={{ catalog: i18nCatalog }}>
@@ -177,6 +169,18 @@ export default function Root() {
       </AppProviders>
     </AppToolkitProvider>
   );
+}
+
+export default function Root() {
+  const { pathname } = useLocation();
+
+  // The public status route has no session-bound controls or query state. Keep
+  // it out of the authenticated app shell so gateway visitors can hydrate the
+  // actual status surface instead of the workspace chrome.
+  if (/\/status\/[^/]+\/?$/.test(pathname)) {
+    return <Outlet />;
+  }
+  return <AuthenticatedRoot />;
 }
 
 export { ErrorBoundary } from "@agent-native/core/client";
