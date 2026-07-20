@@ -35,7 +35,7 @@ After this ships, a portfolio visitor experiences **one guided inbound product**
 
 - Decision: Visitor-first guided shell, then operator reuse. Rationale: demo/interview first impression is the product. Date: 2026-07-20.
 - Decision: Phase reliability before visual chrome. Rationale: spinner traps make UX work invisible. Date: 2026-07-20.
-- Decision: New cross-app “mine” surfaces use signed journey tokens; do not add `?mine=<raw responseId>`. Path capabilities (`/status/:responseId`, `/book/:responseId`) remain nanoid unguessable keys initially. Rationale: minimize new leakage while matching existing capability model. Date: 2026-07-20.
+- Decision: New cross-app “mine” surfaces use **opaque** journey tokens (server hash map); do not add `?mine=<raw responseId>`. Path capabilities (`/status/:responseId`, `/book/:responseId`) remain nanoid unguessable keys initially. Rationale: minimize new leakage while matching existing capability model. Date: 2026-07-20.
 - Decision: Strip `lead.id`, `llmModel`, `llmCostUsd`, and eval accuracy from **visitor** UI and narrow public JSON where practical; keep operator views richer. Rationale: privacy + product clarity. Date: 2026-07-20.
 - Decision: Honor publisher `redirectUrl` when set; talk-to-sales seed remains the guided default contract. Rationale: forms product already owns redirect settings. Date: 2026-07-20.
 - Decision: Sample **values** may be client-only non-persisting autofill on the form (no network). Any **seed** that creates leads/queue rows is auth-gated server action only (operator/presenter session). A public `PUBLIC_DEMO_UX` flag alone must never authorize mutations. Date: 2026-07-20.
