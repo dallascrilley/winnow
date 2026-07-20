@@ -3,25 +3,28 @@ import { eq } from "@agent-native/core/db/schema";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
+import { issueJourneyToken } from "../server/lib/journey-token.js";
 import { parseAudit } from "../server/lib/leads.js";
 
 /**
  * Anonymous, capability-keyed read for the public status page. The forms
  * response id (a nanoid the submitter receives via redirect) is the lookup
  * key — unguessable, so no session is required. Returns a sanitized
- * projection: no owner email, org, or raw form payload.
+ * projection: no owner email, org, raw form payload, internal lead id, or
+ * operator telemetry (model/cost). Issues a short-lived opaque journeyToken
+ * for cross-app funnel highlight.
  *
  * Registered in server/plugins/auth.ts publicPaths.
  */
 export default defineAction({
   description:
-    "Public read of a lead's qualification status by form response id (capability key, sanitized projection).",
+    "Public read of a lead's qualification status by form response id (capability key, sanitized projection + journey token).",
   schema: z.object({
     responseId: z.string().min(1),
+    /** Query flag from status page; only the string "true" mints a token. */
+    issueJourney: z.string().optional(),
   }),
-  http: { method: "GET" },
-  requiresAuth: false,
-  run: async ({ responseId }) => {
+  run: async ({ responseId, issueJourney: issueJourneyRaw }) => {
     const db = getDb();
     const rows = await db
       .select()
@@ -36,10 +39,21 @@ export default defineAction({
       return { found: false as const };
     }
 
+    let journeyToken: string | null = null;
+    if (issueJourneyRaw === "true") {
+      try {
+        // Always mint a fresh opaque token for this page load (multiple
+        // concurrent hashes per formResponseId are fine; resolve is by hash).
+        journeyToken = await issueJourneyToken(responseId, undefined, {
+          force: true,
+        });
+      } catch {
+        journeyToken = null;
+      }
+    }
     return {
       found: true as const,
       lead: {
-        id: lead.id,
         status: lead.status,
         name: lead.name,
         fitScore: lead.fitScore,
@@ -48,11 +62,10 @@ export default defineAction({
         scoreReasoning: lead.scoreReasoning,
         proposal: lead.proposal ? JSON.parse(lead.proposal) : null,
         enrichment: lead.enrichment ? JSON.parse(lead.enrichment) : null,
-        llmModel: lead.llmModel,
-        llmCostUsd: lead.llmCostUsd,
         audit: parseAudit(lead.audit),
         createdAt: lead.createdAt,
         updatedAt: lead.updatedAt,
+        journeyToken,
       },
     };
   },

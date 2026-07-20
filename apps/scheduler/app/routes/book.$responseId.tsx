@@ -13,6 +13,8 @@ interface RouteInfo {
   eventLength: number;
   hostName: string;
   bookingUid: string | null;
+  attendeeName?: string | null;
+  attendeeEmail?: string | null;
 }
 
 interface Slot {
@@ -47,7 +49,10 @@ function timeLabel(iso: string): string {
 }
 
 export function meta() {
-  return [{ title: "Pick a time — Inbound" }];
+  return [
+    { title: "Pick a time — Inbound" },
+    { name: "referrer", content: "no-referrer" },
+  ];
 }
 
 export default function BookPage() {
@@ -93,6 +98,8 @@ export default function BookPage() {
           return;
         }
         setRoute(info);
+        if (info.attendeeName) setName(info.attendeeName);
+        if (info.attendeeEmail) setEmail(info.attendeeEmail);
         if (info.status !== "routed") return;
       } catch {
         setError(
@@ -225,14 +232,16 @@ export default function BookPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your name"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                      readOnly={Boolean(route.attendeeName)}
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500 read-only:opacity-80"
                     />
                     <input
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Work email"
                       type="email"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                      readOnly={Boolean(route.attendeeEmail)}
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500 read-only:opacity-80"
                     />
                     <button
                       onClick={confirm}

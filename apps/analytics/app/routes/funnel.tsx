@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * Public, no-login funnel page for the Inbound lead-router demo. Renders the
@@ -34,7 +34,10 @@ interface FunnelPayload {
 }
 
 export function meta() {
-  return [{ title: "Inbound funnel — live demo" }];
+  return [
+    { title: "Inbound funnel — live demo" },
+    { name: "referrer", content: "no-referrer" },
+  ];
 }
 
 function Metric({
@@ -58,9 +61,11 @@ function Metric({
 function Bars({
   title,
   rows,
+  highlightLabel,
 }: {
   title: string;
   rows: { label: string; n: number }[];
+  highlightLabel?: string | null;
 }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
@@ -70,20 +75,28 @@ function Bars({
         <p className="text-xs text-zinc-600">No data yet.</p>
       )}
       <div className="space-y-2">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-3">
-            <span className="w-28 truncate text-right text-xs text-zinc-500">
-              {r.label}
-            </span>
-            <div className="h-4 flex-1 rounded bg-zinc-800">
-              <div
-                className="h-4 rounded bg-emerald-600/70"
-                style={{ width: `${Math.max(2, (r.n / max) * 100)}%` }}
-              />
+        {rows.map((r) => {
+          const highlighted =
+            highlightLabel &&
+            r.label.toLowerCase().includes(highlightLabel.toLowerCase());
+          return (
+            <div key={r.label} className="flex items-center gap-3 text-sm">
+              <span
+                className={`w-24 shrink-0 truncate ${highlighted ? "font-medium text-emerald-300" : "text-zinc-400"}`}
+              >
+                {r.label}
+                {highlighted ? " ← you" : ""}
+              </span>
+              <div className="h-2 flex-1 overflow-hidden rounded bg-zinc-800">
+                <div
+                  className={`h-full rounded ${highlighted ? "bg-emerald-400" : "bg-zinc-500"}`}
+                  style={{ width: `${(r.n / max) * 100}%` }}
+                />
+              </div>
+              <span className="w-10 text-right text-zinc-500">{r.n}</span>
             </div>
-            <span className="w-8 text-xs text-zinc-400">{r.n}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -93,6 +106,14 @@ export default function PublicFunnelPage() {
   const [data, setData] = useState<FunnelPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [base, setBase] = useState("");
+  const [highlight, setHighlight] = useState<{
+    stageLabel: string;
+  } | null>(null);
+
+  const journeyToken = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("j");
+  }, []);
 
   useEffect(() => {
     // Derive the mount prefix ("" direct-dev, "/analytics" dev-gateway,
@@ -123,6 +144,36 @@ export default function PublicFunnelPage() {
       clearInterval(t);
     };
   }, []);
+
+  useEffect(() => {
+    if (!journeyToken || !base) return;
+    // Cross-app: qualify owns the opaque token map. Derive sibling qualify base.
+    const qualifyBase = base.endsWith("/analytics")
+      ? `${base.slice(0, -"/analytics".length)}/qualify`
+      : "/qualify";
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `${qualifyBase}/_agent-native/actions/get-journey-funnel-highlight?token=${encodeURIComponent(journeyToken)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          found?: boolean;
+          stageLabel?: string;
+        };
+        if (!cancelled && json.found && json.stageLabel) {
+          setHighlight({ stageLabel: json.stageLabel });
+        }
+      } catch {
+        // Soft fail — funnel still shows aggregates.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [journeyToken, base]);
 
   const tierRows = (data?.tierDistribution ?? []).map((r) => ({
     label: r.label,
@@ -191,7 +242,18 @@ export default function PublicFunnelPage() {
             />
           </div>
 
-          <Bars title="Funnel — submissions to bookings" rows={funnelRows} />
+          {highlight && (
+            <p className="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+              Your submission advanced to{" "}
+              <span className="font-medium">{highlight.stageLabel}</span> —
+              aggregates only, no lead identifiers.
+            </p>
+          )}
+          <Bars
+            title="Funnel — submissions to bookings"
+            rows={funnelRows}
+            highlightLabel={highlight?.stageLabel}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <Bars title="Fit tier" rows={tierRows} />
             <Bars title="Segment" rows={segmentRows} />

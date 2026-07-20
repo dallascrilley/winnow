@@ -7,6 +7,7 @@ export default createAuthPlugin({
   publicPaths: [
     "/status",
     "/_agent-native/actions/get-lead-status",
+    "/_agent-native/actions/get-journey-funnel-highlight",
     "/_agent-native/actions/get-eval-status",
   ],
 });

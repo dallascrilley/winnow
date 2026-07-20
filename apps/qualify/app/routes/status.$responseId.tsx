@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
+
+import {
+  apiBaseFromPathname,
+  workspacePrefixFromApiBase,
+} from "../lib/status-path";
 
 /**
  * Public lead-status page — the "watch the agent work" surface. Impersonal
@@ -23,123 +28,162 @@ interface LeadStatus {
   segment: string | null;
   scoreReasoning: string | null;
   proposal: {
-    band: string;
-    eventTypeSlug: string;
-    reason: string;
-    evaluatedAt: string;
+    action?: string;
+    eventTypeSlug?: string;
+    reason?: string;
   } | null;
   enrichment: {
-    matched: boolean;
-    companyName: string | null;
-    industry: string | null;
-    employees: number | null;
-    unverified: boolean;
+    company?: string | null;
+    domain?: string | null;
+    title?: string | null;
   } | null;
-  llmModel: string | null;
-  llmCostUsd: number;
   audit: AuditEntry[];
   createdAt: string;
   updatedAt: string;
+  journeyToken?: string | null;
 }
 
 type Payload = { found: false } | { found: true; lead: LeadStatus };
 
-type EvalPayload = {
-  found: boolean;
-  eval?: {
-    accuracy: number;
-    caseCount: number;
-    model: string;
-    createdAt: string;
-  };
-};
-
 const STAGES = [
   { key: "received", label: "Received" },
-  { key: "enriching", label: "Enriched" },
-  { key: "scored", label: "Scored" },
-  { key: "decision", label: "Decision" },
+  { key: "enrich", label: "Enrich" },
+  { key: "score", label: "Score" },
+  { key: "route", label: "Route" },
 ] as const;
 
 const TERMINAL = new Set([
+  "disqualified",
   "approved",
   "routed",
   "booked",
-  "disqualified",
   "chain_failed",
+  "pending_approval",
 ]);
 
+
 function stageIndex(status: string): number {
-  if (status === "new") return 0;
-  if (status === "enriching") return 1;
-  if (status === "scored") return 2;
-  return 3; // pending_approval, approved, routed, booked, disqualified, chain_failed
+  switch (status) {
+    case "received":
+    case "pending":
+      return 0;
+    case "enriching":
+    case "enriched":
+      return 1;
+    case "scoring":
+    case "scored":
+    case "pending_approval":
+    case "disqualified":
+      return 2;
+    case "approved":
+    case "routing":
+    case "routed":
+    case "booked":
+    case "chain_failed":
+      return 3;
+    default:
+      return 0;
+  }
 }
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  try {
+    return new Date(iso).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function elapsedLabel(fromIso: string, nowMs: number): string {
+  const start = Date.parse(fromIso);
+  if (Number.isNaN(start)) return "";
+  const sec = Math.max(0, Math.floor((nowMs - start) / 1000));
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const terminal = TERMINAL.has(status);
+  const tone =
+    status === "disqualified" || status === "chain_failed"
+      ? "border-zinc-600 text-zinc-300"
+      : status === "pending_approval"
+        ? "border-amber-500/60 text-amber-200"
+        : status === "booked" || status === "routed" || status === "approved"
+          ? "border-emerald-500/60 text-emerald-200"
+          : "border-zinc-600 text-zinc-300";
+  const label = status.split("_").join(" ");
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
-        terminal
-          ? status === "disqualified" || status === "chain_failed"
-            ? "bg-zinc-800 text-zinc-300"
-            : "bg-emerald-950 text-emerald-300"
-          : "bg-amber-950 text-amber-300"
-      }`}
+      className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${tone}`}
     >
-      {!terminal && (
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
-        </span>
-      )}
-      {status.replace(/_/g, " ")}
+      {label}
     </span>
   );
 }
 
 export function meta() {
-  return [{ title: "Lead status — Inbound" }];
+  return [
+    { title: "Lead status — Inbound" },
+    { name: "referrer", content: "no-referrer" },
+  ];
 }
 
 export default function LeadStatusPage() {
   const { responseId } = useParams();
   const [payload, setPayload] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [evalInfo, setEvalInfo] = useState<EvalPayload | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const clock = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    fetch("/_agent-native/actions/get-eval-status", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: EvalPayload | null) => {
-        if (data?.found) setEvalInfo(data);
-      })
-      .catch(() => {});
+  const bases = useMemo(() => {
+    if (typeof window === "undefined") {
+      return { api: "", workspace: "" };
+    }
+    const api = apiBaseFromPathname(window.location.pathname);
+    return { api, workspace: workspacePrefixFromApiBase(api) };
   }, []);
 
   useEffect(() => {
     if (!responseId) return;
     let cancelled = false;
+    let issuedJourney = false;
 
     const tick = async () => {
       try {
+        const wantJourney = !issuedJourney;
         const res = await fetch(
-          `/_agent-native/actions/get-lead-status?responseId=${encodeURIComponent(responseId)}`,
-          { cache: "no-store" },
+          `${bases.api}/_agent-native/actions/get-lead-status`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify({
+              responseId,
+              ...(wantJourney ? { issueJourney: "true" } : {}),
+            }),
+          },
         );
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = (await res.json()) as Payload;
-        if (!cancelled) setPayload(data);
+        if (!cancelled) {
+          setPayload(data);
+          setError(null);
+          if (data.found && data.lead.journeyToken) {
+            issuedJourney = true;
+            setJourneyToken((prev) => prev ?? data.lead.journeyToken ?? null);
+          } else if (data.found) {
+            // Lead exists; stop re-requesting journey mint after first found poll.
+            issuedJourney = wantJourney;
+          }
+        }
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "poll failed");
@@ -147,19 +191,28 @@ export default function LeadStatusPage() {
     };
 
     void tick();
-    timer.current = setInterval(tick, 2500);
+    timer.current = window.setInterval(tick, 2500);
+    clock.current = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => {
       cancelled = true;
-      if (timer.current) clearInterval(timer.current);
+      window.clearInterval(timer.current);
+      window.clearInterval(clock.current);
     };
-  }, [responseId]);
+  }, [responseId, bases.api]);
 
   const lead = payload?.found ? payload.lead : null;
+  const waitingForLead = payload !== null && !payload.found;
   const currentStage = lead ? stageIndex(lead.status) : 0;
+  const bookHref = responseId
+    ? `${bases.workspace}/scheduler/book/${encodeURIComponent(responseId)}`
+    : "#";
+  const funnelHref = journeyToken
+    ? `${bases.workspace}/analytics/funnel?j=${encodeURIComponent(journeyToken)}`
+    : `${bases.workspace}/analytics/funnel`;
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl bg-zinc-950 px-6 py-12 text-zinc-100">
-      <header className="mb-8 flex items-start justify-between">
+      <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-zinc-500">Inbound · live qualification</p>
           <h1 className="mt-1 text-2xl font-semibold">
@@ -167,16 +220,28 @@ export default function LeadStatusPage() {
               ? `Hi${lead.name ? ` ${lead.name.split(" ")[0]}` : ""}, your request is being worked`
               : "Qualifying your request"}
           </h1>
+          {lead && !TERMINAL.has(lead.status) && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Elapsed {elapsedLabel(lead.createdAt, nowMs)} · usually 30–90s
+            </p>
+          )}
+          {waitingForLead && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Submission received — waiting for the agent to open your case
+              (usually under a minute).
+            </p>
+          )}
         </div>
         {lead && <StatusBadge status={lead.status} />}
       </header>
 
-      {/* Pipeline */}
       <ol className="mb-8 flex items-center">
         {STAGES.map((stage, i) => {
           const done = lead
             ? i < currentStage ||
-              (i === currentStage && TERMINAL.has(lead.status))
+              (i === currentStage &&
+                TERMINAL.has(lead.status) &&
+                lead.status !== "pending_approval")
             : false;
           const active = lead
             ? i === currentStage && !TERMINAL.has(lead.status)
@@ -214,7 +279,6 @@ export default function LeadStatusPage() {
         })}
       </ol>
 
-      {/* Score card */}
       {lead?.fitScore !== null && lead?.fitScore !== undefined && (
         <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
           <div className="flex items-baseline gap-3">
@@ -222,30 +286,39 @@ export default function LeadStatusPage() {
               {lead.fitScore.toFixed(2)}
             </span>
             <span className="text-sm text-zinc-400">ICP fit</span>
-            <span className="ml-auto rounded-md bg-zinc-800 px-2 py-1 text-xs">
-              {lead.tier}
-            </span>
-            <span className="rounded-md bg-zinc-800 px-2 py-1 text-xs">
-              {lead.segment}
-            </span>
+            {lead.tier && (
+              <span className="ml-auto rounded-md bg-zinc-800 px-2 py-1 text-xs">
+                {lead.tier}
+              </span>
+            )}
+            {lead.segment && (
+              <span className="rounded-md bg-zinc-800 px-2 py-1 text-xs">
+                {lead.segment}
+              </span>
+            )}
           </div>
           {lead.scoreReasoning && (
             <blockquote className="mt-4 border-l-2 border-zinc-700 pl-4 text-sm text-zinc-300">
               {lead.scoreReasoning}
             </blockquote>
           )}
-          {lead.proposal && (
+          {lead.proposal?.reason && (
             <p className="mt-4 text-sm text-zinc-400">{lead.proposal.reason}</p>
           )}
         </section>
       )}
 
-      {/* Terminal banners */}
       {lead?.status === "disqualified" && (
         <section className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-300">
           Thanks for reaching out — it doesn&apos;t look like there&apos;s a
           strong fit right now. We&apos;ve kept your note on file if things
-          change.
+          change.{" "}
+          <a
+            href={funnelHref}
+            className="text-zinc-200 underline underline-offset-2"
+          >
+            See how scoring works on the funnel →
+          </a>
         </section>
       )}
       {lead && (lead.status === "approved" || lead.status === "routed") && (
@@ -258,7 +331,7 @@ export default function LeadStatusPage() {
             ` Next: ${lead.proposal.eventTypeSlug === "deep-dive" ? "technical deep dive (45 min)" : "discovery call (30 min)"}.`}
           {lead.status === "routed" && responseId && (
             <a
-              href={`/scheduler/book/${encodeURIComponent(responseId)}`}
+              href={bookHref}
               className="mt-3 inline-block rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400"
             >
               Pick a time →
@@ -269,12 +342,24 @@ export default function LeadStatusPage() {
       {lead?.status === "pending_approval" && (
         <section className="mb-8 rounded-xl border border-amber-900 bg-amber-950/40 p-6 text-sm text-amber-200">
           Your request is with a human reviewer for a final check — this usually
-          takes a few minutes.
+          takes a few minutes.{" "}
+          <a
+            href={funnelHref}
+            className="text-amber-100 underline underline-offset-2"
+          >
+            Watch the funnel while you wait →
+          </a>
         </section>
       )}
       {lead?.status === "booked" && (
         <section className="mb-8 rounded-xl border border-emerald-900 bg-emerald-950/40 p-6 text-sm text-emerald-200">
-          You&apos;re booked — check your email for the calendar invite.
+          You&apos;re booked — check your email for the calendar invite.{" "}
+          <a
+            href={funnelHref}
+            className="text-emerald-100 underline underline-offset-2"
+          >
+            See your booking on the funnel →
+          </a>
         </section>
       )}
       {lead?.status === "chain_failed" && (
@@ -284,23 +369,24 @@ export default function LeadStatusPage() {
         </section>
       )}
 
-      {/* Live timeline */}
       <section>
         <h2 className="mb-3 text-sm font-medium text-zinc-400">
           Agent activity
         </h2>
         {error && (
-          <p className="text-xs text-red-400">polling error: {error}</p>
+          <p className="mb-3 text-xs text-red-400">polling error: {error}</p>
         )}
         {!lead && (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
-            Waiting for the agent to pick up your submission…
+            {payload === null
+              ? "Loading status…"
+              : "Waiting for the agent to pick up your submission…"}
           </div>
         )}
         <ol className="space-y-3">
           {(lead?.audit ?? []).map((entry, i) => (
             <li
-              key={i}
+              key={`${entry.at}-${entry.event}-${i}`}
               className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4"
             >
               <span
@@ -341,27 +427,10 @@ export default function LeadStatusPage() {
       </section>
 
       <footer className="mt-10 border-t border-zinc-900 pt-4 text-xs text-zinc-600">
-        {lead?.llmModel && (
-          <span>
-            Scored by {lead.llmModel} · cost ${lead.llmCostUsd.toFixed(4)}{" "}
-            ·{" "}
-          </span>
-        )}
-        {evalInfo?.eval && (
-          <span>
-            Qualifier accuracy: {(evalInfo.eval.accuracy * 100).toFixed(0)}% ·{" "}
-            {evalInfo.eval.caseCount} golden cases · {evalInfo.eval.model} ·{" "}
-            {new Date(evalInfo.eval.createdAt).toLocaleDateString([], {
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            ·{" "}
-          </span>
-        )}
         Demo with synthetic data — a public rebuild of production lead-to-cash
         systems.{" "}
         <a
-          href="/analytics/funnel"
+          href={funnelHref}
           className="text-zinc-400 underline underline-offset-2"
         >
           Live funnel →

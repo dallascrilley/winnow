@@ -287,3 +287,32 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   to `residual` / `RESIDUAL-AWS.md`. Skip: `INTERVIEW_SKIP_RESIDUAL_HINT=1`.
 - [docs] status section + RESIDUAL refresh commands updated.
 - [cmd] empty-stack `status` still exit 0; residual hint appears; no destroy/up.
+
+## 2026-07-20 — visitor-first guided UX (form → status → book → funnel)
+
+- [hand] Prefix-safe status polls/CTAs; honest waiting state; elapsed/ETA; no
+  public model/cost/eval chrome (`apps/qualify/app/routes/status.$responseId.tsx`).
+- [hand] Form SPA parity: inline field errors + `{responseId}` redirect expand
+  (`FormFillPage` + `expand-redirect-url`); client-only sample ICP/mid-band
+  presets (no network).
+- [hand] Opaque journey tokens: `journey_tokens` table (sha256 + TTL), mint on
+  status `issueJourney=true`, public `get-journey-funnel-highlight`; funnel `?j=`
+  highlight. A2A `get-lead-routing-context` replaces public `lead.id` for
+  `route-lead` / booking prefill after DTO strip.
+- [hand] Booking prefill name/email; approvals density (A/R keys, open visitor
+  status, enrichment/industry).
+- [cmd] `pnpm --filter forms|qualify|scheduler|analytics typecheck` green;
+  forms expand-redirect tests + qualify status-path/journey pure tests pass.
+- [docs] Plan progress U1–U7; README 2-minute demo updated. Gateway full E2E
+  browser pass still optional when stack is up (U8 residual).
+
+## 2026-07-20 — visitor-first U8 gateway proof (local)
+
+- Reclaimed disk (`ENOSPC` had blocked vite) — Data volume free space restored.
+- `agent-native dev --port 8888` from worktree `feat/visitor-first-ux`.
+- Planted lead `formResponseId=e2e_visitor_mrtlnczu` (status=routed).
+- **DTO:** POST `get-lead-status` returns found lead **without** `id`/`llmModel`/`llmCostUsd`; issues opaque `journeyToken`.
+- **Token:** GET `get-journey-funnel-highlight?token=…` → `{found, advanced, stageLabel:"routed"}`; garbage tokens → `{found:false}` no 500.
+- **SSR form:** talk-to-sales redirect template still expands `{responseId}` (SSR) to `/qualify/status/{responseId}`.
+- **Browser (gateway):** `/qualify/status/e2e_visitor_mrtlnczu` hydrates — "Hi E2E", score 0.91, Pick a time → `/scheduler/book/e2e_visitor_mrtlnczu`, funnel `?j=<opaque>`; no cost/model chrome; referrer meta no-referrer.
+- **Note:** live gateway accepts POST for `get-lead-status` (GET 405); status client uses POST. Journey highlight remains GET.

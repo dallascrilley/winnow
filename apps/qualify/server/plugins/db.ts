@@ -7,6 +7,8 @@ import {
 import { schema } from "../db/index.js";
 // Generated from the drizzle-kit .sql output (see migrations-sql.ts header).
 import {
+  addJourneyTokensPostgres,
+  addJourneyTokensSqlite,
   addUniqueFormResponseIdPostgres,
   addUniqueFormResponseIdSqlite,
   initPostgres,
@@ -38,6 +40,14 @@ const runQualifyMigrations = runMigrations(
       sql: {
         sqlite: addUniqueFormResponseIdSqlite,
         postgres: addUniqueFormResponseIdPostgres,
+      },
+    },
+    {
+      version: 3,
+      name: "add-journey-tokens",
+      sql: {
+        sqlite: addJourneyTokensSqlite,
+        postgres: addJourneyTokensPostgres,
       },
     },
   ],

@@ -25,6 +25,7 @@ export default defineAction({
         segment: schema.leads.segment,
         llmCostUsd: schema.leads.llmCostUsd,
         createdAt: schema.leads.createdAt,
+        formResponseId: schema.leads.formResponseId,
       })
       .from(schema.leads)
       .orderBy(desc(schema.leads.createdAt))

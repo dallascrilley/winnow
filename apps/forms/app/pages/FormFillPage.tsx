@@ -12,24 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicForm, useSubmitForm } from "@/hooks/use-forms";
 import { normalizeFields } from "@/lib/normalize-fields";
 import { cn } from "@/lib/utils";
+import {
+  expandRedirectUrl,
+  safeRedirectUrl,
+} from "@/lib/expand-redirect-url";
 
-function safeRedirectUrl(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
-
-  try {
-    const url = new URL(trimmed, window.location.origin);
-    if (url.protocol === "http:" || url.protocol === "https:") {
-      return url.href;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
 
 export function FormFillPage() {
   const t = useT();
@@ -39,6 +26,7 @@ export function FormFillPage() {
   const submitForm = useSubmitForm();
 
   const [values, setValues] = useState<Record<string, unknown>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [captchaToken, setCaptchaToken] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [embedded, setEmbedded] = useState(false);
@@ -106,80 +94,107 @@ export function FormFillPage() {
 
   function handleChange(fieldId: string, value: unknown) {
     setValues((prev) => ({ ...prev, [fieldId]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[fieldId]) return prev;
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
   }
 
-  function validate(): string | null {
+  function validate(): Record<string, string> {
+    const errors: Record<string, string> = {};
     for (const field of visibleFields) {
+      const val = values[field.id];
       if (field.required) {
-        const val = values[field.id];
         if (val === undefined || val === null || val === "") {
-          return `${field.label} is required`;
+          errors[field.id] = `${field.label} is required`;
+          continue;
         }
       }
-      if (field.validation) {
-        const val = values[field.id];
-        const hasNumericValue =
-          val !== undefined &&
-          val !== null &&
-          val !== "" &&
-          !Number.isNaN(Number(val));
-        if (
-          hasNumericValue &&
-          field.validation.min !== undefined &&
-          Number(val) < field.validation.min
-        ) {
-          return (
-            field.validation.message ||
-            `${field.label} must be at least ${field.validation.min}`
-          );
-        }
-        if (
-          hasNumericValue &&
-          field.validation.max !== undefined &&
-          Number(val) > field.validation.max
-        ) {
-          return (
-            field.validation.message ||
-            `${field.label} must be at most ${field.validation.max}`
-          );
-        }
-        if (field.validation.pattern && typeof val === "string") {
-          const regex = new RegExp(field.validation.pattern);
-          if (!regex.test(val)) {
-            return field.validation.message || `${field.label} is invalid`;
-          }
+      if (!field.validation) continue;
+      const hasNumericValue =
+        val !== undefined &&
+        val !== null &&
+        val !== "" &&
+        !Number.isNaN(Number(val));
+      if (
+        hasNumericValue &&
+        field.validation.min !== undefined &&
+        Number(val) < field.validation.min
+      ) {
+        errors[field.id] =
+          field.validation.message ||
+          `${field.label} must be at least ${field.validation.min}`;
+        continue;
+      }
+      if (
+        hasNumericValue &&
+        field.validation.max !== undefined &&
+        Number(val) > field.validation.max
+      ) {
+        errors[field.id] =
+          field.validation.message ||
+          `${field.label} must be at most ${field.validation.max}`;
+        continue;
+      }
+      if (field.validation.pattern && typeof val === "string") {
+        const regex = new RegExp(field.validation.pattern);
+        if (!regex.test(val)) {
+          errors[field.id] =
+            field.validation.message || `${field.label} is invalid`;
         }
       }
     }
-    return null;
+    return errors;
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const err = validate();
-    if (err) {
-      toast.error(err);
+    const errors = validate();
+    setFieldErrors(errors);
+    const firstId = Object.keys(errors)[0];
+    if (firstId) {
+      toast.error(errors[firstId]);
+      const el = document.querySelector<HTMLElement>(
+        `[data-field-id="${CSS.escape(firstId)}"]`,
+      );
+      el?.focus();
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
 
     submitForm.mutate(
       {
-        formId: form.id,
+        formId: form!.id,
         data: values,
         captchaToken,
         _hp: honeypot,
         _t: pageLoadTime,
       },
       {
-        onSuccess: () => {
+        onSuccess: (result: { id?: string; success?: boolean }) => {
           setSubmitted(true);
-          if (settings.redirectUrl) {
-            const redirectUrl = safeRedirectUrl(settings.redirectUrl);
-            if (redirectUrl) window.location.assign(redirectUrl);
-          }
+          if (!settings.redirectUrl) return;
+          const redirectUrl = safeRedirectUrl(settings.redirectUrl);
+          if (!redirectUrl) return;
+          const responseId =
+            typeof result?.id === "string" && result.id.length > 0
+              ? result.id
+              : undefined;
+          window.location.assign(
+            expandRedirectUrl(redirectUrl, { responseId }),
+          );
         },
-        onError: (err: any) => {
-          toast.error(err?.error || t("publicForm.failedSubmit"));
+        onError: (err: unknown) => {
+          let message = t("publicForm.failedSubmit");
+          if (err && typeof err === "object" && "error" in err) {
+            const candidate = err.error;
+            if (typeof candidate === "string" && candidate.length > 0) {
+              message = candidate;
+            }
+          }
+          toast.error(message);
         },
       },
     );
@@ -317,6 +332,46 @@ export function FormFillPage() {
           )}
         </div>
 
+        {slug === "talk-to-sales" && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                setValues({
+                  name: "Alex Rivera",
+                  email: "alex.rivera@northwind.io",
+                  company_size: "51-200",
+                  message:
+                    "Evaluating an agent-native inbound pipeline for our mid-market sales team.",
+                });
+                setFieldErrors({});
+              }}
+            >
+              Fill sample ICP (demo)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                setValues({
+                  name: "Sam Chen",
+                  email: "sam@startupmail.com",
+                  company_size: "11-50",
+                  message: "Curious about pricing for a small pilot.",
+                });
+                setFieldErrors({});
+              }}
+            >
+              Fill mid-band (demo)
+            </Button>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit}>
           {/* Honeypot: bots fill this, humans don't see it. */}
@@ -332,12 +387,24 @@ export function FormFillPage() {
           />
           <div className="space-y-6">
             {visibleFields.map((field) => (
-              <FieldRenderer
-                key={field.id}
-                field={field}
-                value={values[field.id]}
-                onChange={(v) => handleChange(field.id, v)}
-              />
+              <div key={field.id} className="space-y-1.5">
+                <FieldRenderer
+                  field={field}
+                  value={values[field.id]}
+                  onChange={(v) => handleChange(field.id, v)}
+                />
+                {fieldErrors[field.id] && (
+                  <p
+                    id={`${field.id}-error`}
+                    role="alert"
+                    className="text-sm text-destructive"
+                    data-field-id={field.id}
+                    tabIndex={-1}
+                  >
+                    {fieldErrors[field.id]}
+                  </p>
+                )}
+              </div>
             ))}
 
             {visibleFields.length === 0 && (
