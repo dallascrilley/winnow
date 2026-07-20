@@ -316,3 +316,21 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - **SSR form:** talk-to-sales redirect template still expands `{responseId}` (SSR) to `/qualify/status/{responseId}`.
 - **Browser (gateway):** `/qualify/status/e2e_visitor_mrtlnczu` hydrates — "Hi E2E", score 0.91, Pick a time → `/scheduler/book/e2e_visitor_mrtlnczu`, funnel `?j=<opaque>`; no cost/model chrome; referrer meta no-referrer.
 - **Note:** live gateway accepts POST for `get-lead-status` (GET 405); status client uses POST. Journey highlight remains GET.
+
+## 2026-07-20 — remote + mini-gateway live form→LLM path
+
+- [cmd] Created public GitHub repo `dallascrilley/inbound`, pushed `main` @
+  `930e067` and branch `feat/visitor-first-ux`.
+- [ops] Removed merged worktree `feat/visitor-first-ux`.
+- [bug] Full `agent-native dev` workspace gateway loops on Dispatch
+  `:8100` readiness (30s timeout + infinite retry). UI: "App failed to start:
+  Agent-Native Dispatch". npmrc `GITHUB_PACKAGES_TOKEN` warn is noise.
+- [hand] `scripts/dev-mini-gateway.mjs` — path proxy `/forms|/qualify|…`
+  without Dispatch. Per-app vite configs honor `PORT`/`HOST` (agent-native
+  ignores `--port`, defaults 8888).
+- [cmd] Live submit via mini-gateway :8080 + forms:8102 + qualify:8103:
+  response `o4bIvjoGNLByFQbfc7Gx8` → enrich → **qwen3:4b score 1.00 high/
+  midmarket** with reasoning → auto-approve proposal → `chain_failed` only
+  because scheduler :8104 was not started
+  (`scheduler/route-lead 502 ECONNREFUSED`). Form→LLM path verified; full
+  route needs scheduler on 8104 behind the mini-gateway.

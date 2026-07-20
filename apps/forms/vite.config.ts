@@ -8,6 +8,13 @@ const agentNativePlugins = agentNative as unknown as (
 ) => any[];
 
 export default defineConfig({
+  server: {
+    // agent-native dev does not reliably forward --port; honor PORT for
+    // multi-app local E2E without the full workspace gateway.
+    port: Number(process.env.PORT || 8888),
+    strictPort: true,
+    host: process.env.HOST || "127.0.0.1",
+  },
   plugins: [
     ...reactRouterPlugins(),
     ...agentNativePlugins({
