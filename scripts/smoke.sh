@@ -48,14 +48,20 @@ say "response id: $RID — waiting for terminal status (ollama CPU scoring is sl
 STATUS=""
 for _ in $(seq 1 60); do
   sleep 15
-  STATUS=$(curl -s -m 30 "$BASE/qualify/_agent-native/actions/get-lead-status?responseId=$RID" \
+  # get-lead-status is POST-only (no http.method GET on the action). Query-string
+  # GET returns 405 Method Not Allowed on the gateway.
+  STATUS=$(curl -s -m 30 -X POST \
+    -H "Content-Type: application/json" \
+    -d "{\"responseId\":\"$RID\"}" \
+    "$BASE/qualify/_agent-native/actions/get-lead-status" \
     | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["lead"]["status"] if d.get("found") else "")' 2>/dev/null)
   case "$STATUS" in
-    routed|booked|disqualified|approved) break ;;
+    routed|booked|disqualified|approved|pending_approval) break ;;
   esac
 done
 say "terminal status: ${STATUS:-<timeout>}"
-case "$STATUS" in routed|booked|approved) : ;; *) say "FAIL: lead did not route"; FAIL=1 ;; esac
+# pending_approval is a valid terminal for mid-band ICP; route/book still count as pass.
+case "$STATUS" in routed|booked|approved|pending_approval) : ;; *) say "FAIL: lead did not reach a terminal status"; FAIL=1 ;; esac
 
 say "== funnel moved"
 SUBS=$(curl -s -m 30 "$BASE/analytics/_agent-native/actions/get-public-funnel" \

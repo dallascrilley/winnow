@@ -334,3 +334,9 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   because scheduler :8104 was not started
   (`scheduler/route-lead 502 ECONNREFUSED`). Form→LLM path verified; full
   route needs scheduler on 8104 behind the mini-gateway.
+
+## 2026-07-20 — smoke.sh POST get-lead-status
+
+- [bug] `scripts/smoke.sh` polled `get-lead-status` via GET query string; action
+  is POST-only → 405 on gateway. Fixed to POST JSON body. Accept
+  `pending_approval` as terminal for mid-band ICP.
