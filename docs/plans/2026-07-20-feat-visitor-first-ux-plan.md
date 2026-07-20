@@ -39,7 +39,7 @@ After this ships, a portfolio visitor experiences **one guided inbound product**
 - Decision: Strip `lead.id`, `llmModel`, `llmCostUsd`, and eval accuracy from **visitor** UI and narrow public JSON where practical; keep operator views richer. Rationale: privacy + product clarity. Date: 2026-07-20.
 - Decision: Honor publisher `redirectUrl` when set; talk-to-sales seed remains the guided default contract. Rationale: forms product already owns redirect settings. Date: 2026-07-20.
 - Decision: Sample **values** may be client-only non-persisting autofill on the form (no network). Any **seed** that creates leads/queue rows is auth-gated server action only (operator/presenter session). A public `PUBLIC_DEMO_UX` flag alone must never authorize mutations. Date: 2026-07-20.
-- Decision: Journey tokens are **opaque** (HMAC over random id or sealed blob) — not base64 JSON with bare `frid`. Server maps token → formResponseId. Query `j=` still hits history/logs: short TTL, no sensitive payload in token, prefer fragment or one-time exchange if easy; document residual log risk. Date: 2026-07-20.
+- Decision: Journey tokens are **random opaque ids** with a **server-side mapping** (store hash(token) → `{ formResponseId, exp }`). Not signed/base64 JSON containing `frid` (HMAC ≠ confidentiality). Query `j=` residual history/log risk: short TTL; document it. Date: 2026-07-20.
 
 ## Outcomes & Retrospective
 
@@ -120,18 +120,18 @@ Gateway shapes (must all work): direct app port, dev workspace gateway, prod `/i
 - **Goal:** Safe cross-app personalization primitive; status JSON stops leaking internal id and operator telemetry fields.
 - **Requirements:** R8, R9, R10, R12
 - **Files:**
-  - New: `apps/qualify/server/lib/journey-token.ts` (sign/verify HMAC with server secret already used for A2A or dedicated env)
+  - New: `apps/qualify/server/lib/journey-token.ts` (mint random token + hashed lookup row; verify/consume)
   - `apps/qualify/actions/get-lead-status.ts` (DTO allowlist)
   - `apps/forms/server/lib/lead-router.ts` and/or submissions success payload (issue token optional field)
   - `apps/analytics/actions/get-public-funnel.ts` or new `get-journey-funnel-highlight.ts` public action
   - auth `publicPaths` registrations
 - **Approach:**
-  1. Issue **opaque** journey tokens: random id (or sealed) stored server-side with `{ formResponseId, exp }`, or HMAC-sealed payload that does not leave `frid` readable in the browser. Never put bare formResponseId in base64 JSON clients can decode.
-  2. TTL ~2h demo session. Capability to obtain a token: already knowing status path id (or server issues on process-lead and returns via status payload `journeyToken` once lead exists).
-  3. Funnel highlight action: input opaque token → `{ stageLabel, advanced: true }` only; map token server-side.
-  4. Prefer passing `j` via redirect carefully; set Referrer-Policy; document that query tokens can appear in access logs/history — mitigate with TTL + opacity, optional one-time exchange later.
-  5. Strip `id`, `llmModel`, `llmCostUsd` from get-lead-status return; visitor UI never renders them.
-  6. Regression tests: tamper/expiry; public JSON has no `id` / `llmCostUsd`; token string alone does not reveal formResponseId via base64 decode.
+  1. Mint `token = randomBytes(32).toString("base64url")`. Persist only `sha256(token)` → `{ formResponseId, exp }` (qualify DB or memory+table). Client receives opaque token only — **no** embedded frid, **no** HMAC-of-JSON design.
+  2. TTL ~2h. Issue when lead exists (status payload `journeyToken` and/or process-lead path). Knowing status path id is enough capability to mint once.
+  3. Funnel highlight action: input opaque token → lookup hash → `{ stageLabel, advanced: true }` only.
+  4. Referrer-Policy on public docs; document query-token log/history residual; optional later one-time exchange.
+  5. Strip `id`, `llmModel`, `llmCostUsd` from get-lead-status; visitor UI never renders them.
+  6. Tests: unknown/expired token; public JSON has no `id`/`llmCostUsd`; decoding token string yields no formResponseId.
 
 ### U4. Status hero UX
 
