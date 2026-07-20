@@ -115,11 +115,26 @@ Cron/launchd entrypoint for a forgotten `down`. Reads
 | 1 | Age ≥ `INTERVIEW_EXPIRE_WARN_H` (default 3) |
 | 2 | Age ≥ `INTERVIEW_EXPIRE_CRITICAL_H` (default 6), or AWS probe failed |
 
-Does **not** destroy anything. Example:
+Does **not** destroy anything. Example cron:
 
 ```bash
 */30 * * * * cd /path/to/inbound && infra/interview.sh check-expiry \
   || ntfy publish agent_alerts "inbound interview stack still up (rc=$?)"
+```
+
+### Local launchd install (this machine)
+
+```bash
+infra/install-interview-expiry-agent.sh   # every 30m → check-expiry-notify → ntfy agent_alerts
+```
+
+Wrapper: `infra/check-expiry-notify.sh` (dedupes alerts per severity+start hour;
+uses `tether push --immediate` with `ntfy` fallback). Logs:
+`~/.hub/logs/inbound-interview-expiry.launchd.log`. Uninstall:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.dallas.inbound-interview-expiry.plist
+rm -f ~/Library/LaunchAgents/com.dallas.inbound-interview-expiry.plist
 ```
 
 ## Expected timings

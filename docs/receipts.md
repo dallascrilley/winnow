@@ -244,3 +244,14 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   booting `terraform state list` / `terraform output` (~5s each).
 - [docs] Runbook "five commands" + session marker section replaces "Future
   guard"; README command list updated.
+
+## 2026-07-20 — launchd forgotten-down notifier
+
+- [hand] `infra/check-expiry-notify.sh` — runs `check-expiry`, pages
+  `agent_alerts` via `tether push --immediate` (ntfy fallback), dedupes by
+  severity+session start fingerprint under `~/.cache/inbound-interview/`.
+- [hand] `infra/com.dallas.inbound-interview-expiry.plist` +
+  `infra/install-interview-expiry-agent.sh` — 30m `StartInterval`, path rewrite
+  to current HOME/repo, loaded under `gui/$UID`.
+- [cmd] install loaded agent; wrapper rc=0 with no marker; marker+ALB-gone
+  clears marker rc=0; kickstart log line confirms quiet run. No auto-destroy.

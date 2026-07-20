@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Forgotten-down guard for Inbound interview mode.
+  Install (from repo root):
+    infra/install-interview-expiry-agent.sh
+  Uninstall:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.dallas.inbound-interview-expiry.plist
+    rm -f ~/Library/LaunchAgents/com.dallas.inbound-interview-expiry.plist
+  Logs:
+    ~/.hub/logs/inbound-interview-expiry.launchd.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.dallas.inbound-interview-expiry</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/dallascrilley/Code/inbound/infra/check-expiry-notify.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/dallascrilley/Code/inbound</string>
+  <!-- Every 30 minutes -->
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/dallascrilley/.hub/logs/inbound-interview-expiry.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/dallascrilley/.hub/logs/inbound-interview-expiry.launchd.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/dallascrilley/.local/bin:/Users/dallascrilley/.local/share/mise/shims:/Users/dallascrilley/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/dallascrilley</string>
+    <key>AWS_REGION</key>
+    <string>us-east-1</string>
+    <key>INBOUND_EXPIRY_NTFY_TOPIC</key>
+    <string>agent_alerts</string>
+  </dict>
+</dict>
+</plist>
