@@ -16,13 +16,15 @@ check() { # name expected actual
 
 say "== health"
 # /healthz is served by prod-start.mjs only; local dev has no such endpoint,
-# so skip when absent and stay strict when it answers.
-HCODE=$(curl -s -o /dev/null -w "%{http_code}" -m 20 "$BASE/healthz")
+# so skip when absent and stay strict when it answers. One request: body with
+# the status code appended on a trailing line.
+HRESP=$(curl -s -m 20 -w '\n%{http_code}' "$BASE/healthz")
+HCODE=${HRESP##*$'\n'}
+HEALTH=${HRESP%$'\n'*}
 if [ "$HCODE" = "200" ]; then
-  HEALTH=$(curl -s -m 20 "$BASE/healthz")
   check "healthz ok:true" "true" "$(printf '%s' "$HEALTH" | python3 -c 'import sys,json; print(str(json.load(sys.stdin)["ok"]).lower())' 2>/dev/null || echo parse-error)"
 else
-  say "skip healthz (endpoint absent: HTTP $HCODE — prod-only; local dev)"
+  say "skip healthz (no healthy endpoint: HTTP $HCODE — prod-only; local dev has none)"
 fi
 
 say "== public surfaces"
@@ -44,7 +46,7 @@ if [ -z "$RID" ]; then say "FAIL submit: $RESP"; exit 1; fi
 say "response id: $RID — waiting for terminal status (ollama CPU scoring is slow)"
 
 STATUS=""
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   sleep 15
   STATUS=$(curl -s -m 30 "$BASE/qualify/_agent-native/actions/get-lead-status?responseId=$RID" \
     | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["lead"]["status"] if d.get("found") else "")' 2>/dev/null)
