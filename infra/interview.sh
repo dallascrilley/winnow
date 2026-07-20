@@ -14,8 +14,8 @@
 # id all change on every destroy + re-apply cycle.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(unset CDPATH; cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(unset CDPATH; cd -- "$SCRIPT_DIR/.." && pwd)"
 REGION="${AWS_REGION:-us-east-1}"
 HEALTHZ_TIMEOUT_S="${HEALTHZ_TIMEOUT_S:-900}"   # 15 min — cold boot is migrations + ollama model load
 SEED_TIMEOUT_S="${SEED_TIMEOUT_S:-600}"          # 10 min
@@ -79,6 +79,14 @@ tf() {
 tf_out() {
   # tf_out <output-name> — raw scalar output
   tf output -raw "$1" 2>/dev/null || die "terraform output '$1' not available — did 'terraform apply' run and succeed?"
+}
+
+tf_out_or() {
+  # tf_out_or <output-name> <default> — raw scalar, or default when missing
+  # (stale state after partial teardown may lack newer outputs)
+  local v
+  v=$(tf output -raw "$1" 2>/dev/null) && [ -n "$v" ] && { printf '%s' "$v"; return 0; }
+  printf '%s' "$2"
 }
 
 tf_out_json() {
@@ -467,25 +475,45 @@ cmd_status() {
     return 0
   fi
 
-  local alb_dns cluster service public_prefix base_url
-  alb_dns=$(tf_out alb_dns_name)
-  cluster=$(tf_out ecs_cluster)
-  service=$(tf_out ecs_service)
-  public_prefix=$(tf_out public_prefix)
-  base_url="http://${alb_dns}${public_prefix}"
+  local alb_dns cluster service public_prefix public_url base_url
+  alb_dns=$(tf_out_or alb_dns_name "")
+  cluster=$(tf_out_or ecs_cluster "")
+  service=$(tf_out_or ecs_service "")
+  public_prefix=$(tf_out_or public_prefix "/inbound")
+  public_url=$(tf_out_or public_url "")
+  if [ -z "$alb_dns" ] && [ -z "$cluster" ] && [ -z "$service" ]; then
+    say "no usable terraform outputs available — stack is likely down (or never applied)."
+    return 0
+  fi
+  if [ -n "$alb_dns" ]; then
+    base_url="http://${alb_dns}${public_prefix}"
+  elif [ -n "$public_url" ]; then
+    base_url="$public_url"
+  else
+    base_url=""
+  fi
 
   info "terraform outputs"
-  say "  alb_dns_name : $alb_dns"
-  say "  public_url   : $(tf_out public_url)"
-  say "  ecs_cluster  : $cluster"
-  say "  ecs_service  : $service"
+  say "  alb_dns_name : ${alb_dns:-<missing>}"
+  say "  public_url   : ${public_url:-<missing>}"
+  say "  public_prefix: $public_prefix"
+  say "  ecs_cluster  : ${cluster:-<missing>}"
+  say "  ecs_service  : ${service:-<missing>}"
 
   info "ECS service state"
-  aws ecs describe-services --cluster "$cluster" --services "$service" --region "$REGION" \
-    --query 'services[0].{status:status,desired:desiredCount,running:runningCount,pending:pendingCount,deployments:deployments[].{status:status,rolloutState:rolloutState}}' \
-    --output table 2>/dev/null || warn "could not describe ECS service (stack may be mid-teardown)"
+  if [ -n "$cluster" ] && [ -n "$service" ]; then
+    aws ecs describe-services --cluster "$cluster" --services "$service" --region "$REGION" \
+      --query 'services[0].{status:status,desired:desiredCount,running:runningCount,pending:pendingCount,deployments:deployments[].{status:status,rolloutState:rolloutState}}' \
+      --output table 2>/dev/null || warn "could not describe ECS service (stack may be mid-teardown or state is stale)"
+  else
+    warn "ecs_cluster/ecs_service outputs missing — skipping ECS probe"
+  fi
 
   info "healthz probe"
+  if [ -z "$base_url" ]; then
+    warn "no base URL available — skipping healthz probe"
+    return 0
+  fi
   local body ok
   body=$(curl -s -m 10 "$base_url/healthz" 2>/dev/null || true)
   ok=$(printf '%s' "$body" | python3 -c 'import sys,json

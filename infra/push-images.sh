@@ -2,7 +2,8 @@
 # Build and push the app + ollama images to ECR (run from the repo root after
 # `terraform apply` created the repos; re-run on every app change).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+unset CDPATH
+cd -- "$(dirname -- "$0")/.."
 
 REGION="${AWS_REGION:-us-east-1}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
