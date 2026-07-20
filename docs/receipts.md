@@ -160,3 +160,22 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [hand] `scripts/smoke.sh` — healthz, public surfaces 200, form discovery via public API, planted submission → terminal status poll (60×15s), funnel-movement check.
 - [hand] README replaced (2-minute demo script, AI-engineering story, deploy runbook, env table, synthetic-data + latency honesty notes) + `docs/architecture.md` (diagram + per-stage request flow + shape rationale). cv.md Public Demos entry added (source release flagged pending).
 - [bug] First rollout: app container exit 1 — `PostgresError: no pg_hba.conf entry for host ..., user "inbound", database "postgres", no encryption` (CloudWatch /ecs/inbound-demo). RDS PG16 requires SSL; the framework pg pool (`@agent-native/core/dist/db/client.js`) sets no `ssl` option, so plaintext connections die. Fix (e8109ec): append `?sslmode=require` to every URL the runner + seed construct (postgres.js encrypts, no CA verify — fine for RDS without the bundle). No terraform change needed; scripts only run in-container so local dev URLs are untouched.
+
+## 2026-07-19 — Teardown: full stack retired to on-demand interview mode
+
+- [decision] A rate-card reconciliation of the U8 stack found real always-on
+  cost is **$122–125/month** (Fargate 2 vCPU/8 GB, RDS db.t4g.micro
+  storage/IO, ALB hourly charge, public IPv4) — not the README's original
+  ~$55/month estimate, which had undercounted several of those line items.
+- [decision] Chose reproducibility over idle uptime (see
+  `docs/ideation/2026-07-17-inbound-portfolio-value-lite-architecture.md`,
+  ranked ideas #2 and #6): the ECS/RDS/ALB stack becomes an on-demand
+  **interview mode** — activate, verify against the planted-lead smoke path,
+  capture dated receipts, destroy — instead of staying allocated between
+  visits.
+- [cmd] `terraform destroy` against the U8 stack — ALB, ECS service, RDS
+  instance removed. `https://demos.dallascrilley.com/inbound` now 404s
+  (Cloudflare-proxied, nothing behind it) until the next activation.
+- [note] Local dev is unaffected: `pnpm dev` plus offline Ollama (`qwen3:4b`)
+  scoring stays fully live at all times. Activation runbook and receipt
+  format land in `docs/interview-mode.md` (companion `infra/interview.sh`).

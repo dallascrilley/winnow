@@ -5,7 +5,12 @@ enriched, scored for ICP fit by an LLM **with visible reasoning**, parked for
 human review when the score is borderline, round-robin routed to the right
 AE's calendar, booked, and counted — every stage live on a public dashboard.
 
-**Live demo:** <https://demos.dallascrilley.com/inbound>
+**Demo status:** activated on demand, not always-on. The full AWS stack
+(ECS Fargate + RDS + ALB) applies clean, gets verified against a real
+planted-lead run, and is torn down again rather than left running between
+visits — see [Full vs. on-demand](#full-vs-on-demand-a-cost-case-study)
+below for why. When active: <https://demos.dallascrilley.com/inbound>. Ask
+for a session, or run it yourself locally (`pnpm dev`, fully offline).
 
 Built by Dallas Crilley as a portfolio piece: ten years of owning lead-to-cash
 operations, rebuilt as the agent-native version. Composed from the
@@ -14,6 +19,9 @@ templates and packages — the full composition story, with every fork delta and
 discovery, is in [`docs/receipts.md`](docs/receipts.md).
 
 ## The 2-minute demo
+
+This is what a visitor sees once the demo is active (or what you'll see
+running it locally with `pnpm dev`):
 
 1. **Submit the form** at
    <https://demos.dallascrilley.com/inbound/forms/f/talk-to-sales> — use a
@@ -86,20 +94,44 @@ Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
 DNS.
 
 ```bash
-cd infra && terraform init && terraform apply   # ~15 min
-cd .. && infra/push-images.sh                    # build + push app & ollama images
-aws ecs update-service --cluster inbound-demo --service inbound-demo --force-new-deployment
-# seed once the service is healthy:
-aws ecs execute-command --cluster inbound-demo --task <task-id> --container app \
-  --interactive --command "node scripts/prod-seed.mjs"
-./scripts/smoke.sh https://demos.dallascrilley.com/inbound
+infra/interview.sh up     # apply (~15 min) → build+push images → roll out →
+                          # wait for healthz → seed (one-off ECS run-task) →
+                          # smoke test → dated receipt block
+infra/interview.sh down   # destroy everything again
 ```
+
+Each step can also be run by hand (`terraform apply`, `infra/push-images.sh`,
+`aws ecs update-service --force-new-deployment`, a `run-task` seed, then
+`./scripts/smoke.sh <base-url>`) — the script just sequences them and reads
+every identifier from `terraform output`, since ALB/subnet/SG names change on
+every re-apply.
 
 DNS is the one operator step: no available Cloudflare credential can see the
 zone, so `terraform output dns_records_to_create` prints the ACM validation
 CNAME + the demos CNAME to add by hand (or set `manage_dns=true` with a
-zone-capable token). Runtime is ~$55/month (Fargate 2 vCPU/8 GB, db.t4g.micro,
-ALB) — destroy with `terraform destroy`.
+zone-capable token).
+
+The stack applies clean from scratch and is destroyed again between proof
+runs rather than left running — see the cost case study below for why, and
+[`docs/interview-mode.md`](docs/interview-mode.md) for the activate → verify
+→ capture receipts → destroy runbook.
+
+### Full vs. on-demand: a cost case study
+
+The original estimate here was ~$55/month (Fargate 2 vCPU/8 GB,
+db.t4g.micro, ALB). A rate-card reconciliation later found that number
+missed real Fargate vCPU/memory pricing, RDS storage/IO, the ALB hourly
+charge, and public IPv4 — true always-on cost is closer to **$122–125/month**.
+Not a rounding error; it changes the tradeoff.
+
+An idle ECS/RDS/ALB stack doesn't prove more by sitting there between
+visits than a stack that applies cleanly, passes its planted-lead smoke
+test, and gets torn down on a dated receipt trail. So the full stack now
+runs as **interview mode**: activate on demand, verify, capture receipts
+(Terraform apply/destroy, image digest, health + smoke results), destroy.
+Local dev (`pnpm dev`, offline Ollama scoring) stays live at all times for
+anyone who wants to run it themselves — `terraform destroy` retires the
+managed stack, not the project.
 
 ## Environment
 
@@ -132,7 +164,9 @@ shell keys shadow `.env` (unset them).
 
 ## Links
 
-- Live demo: <https://demos.dallascrilley.com/inbound>
+- Demo (when active): <https://demos.dallascrilley.com/inbound> — see
+  [Full vs. on-demand](#full-vs-on-demand-a-cost-case-study) and
+  [`docs/interview-mode.md`](docs/interview-mode.md)
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Composition receipts: [`docs/receipts.md`](docs/receipts.md)
 - Slack wiring spec: [`docs/slack-wiring.md`](docs/slack-wiring.md)
