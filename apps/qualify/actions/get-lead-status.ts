@@ -50,10 +50,11 @@ function publicProposal(raw: string | null) {
 /**
  * Anonymous, capability-keyed read for the public status page. The forms
  * response id (a nanoid the submitter receives via redirect) is the lookup
- * key — unguessable, so no session is required. Returns a sanitized
- * projection: no owner email, org, raw form payload, internal lead id, or
- * operator telemetry (model/cost). Issues a short-lived opaque journeyToken
- * for cross-app funnel highlight.
+ * key — unguessable, so no session is required. The response contains only
+ * visitor-facing status fields, a projected event type, and a fixed-shape
+ * audit timeline. It never returns raw audit details, parsed internal JSON,
+ * ownership/contact data, or operator telemetry. Issues a short-lived opaque
+ * journeyToken for cross-app funnel highlight.
  *
  * Registered in server/plugins/auth.ts publicPaths.
  */

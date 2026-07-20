@@ -34,7 +34,15 @@ vi.mock("../server/lib/journey-token.js", () => ({
   issueJourneyToken: vi.fn(),
 }));
 vi.mock("../server/lib/leads.js", () => ({
-  parseAudit: (raw: string | null) => (raw ? JSON.parse(raw) : []),
+  parseAudit: (raw: string | null) => {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
 }));
 
 import getLeadStatus from "./get-lead-status";
@@ -133,6 +141,28 @@ describe("get-lead-status", () => {
         createdAt: "2026-07-20T12:00:00.000Z",
         journeyToken: null,
       },
+    });
+  });
+
+  it("drops malformed stored JSON rather than exposing or rejecting it", async () => {
+    mockLead([
+      {
+        status: "scored",
+        name: "Visitor",
+        fitScore: 0.91,
+        tier: "high",
+        segment: "midmarket",
+        proposal: "{not-json",
+        audit: "{not-json",
+        createdAt: "2026-07-20T12:00:00.000Z",
+      },
+    ]);
+
+    const result = await getLeadStatus.run({ responseId: "response_123" });
+
+    expect(result).toMatchObject({
+      found: true,
+      lead: { proposal: null, audit: [] },
     });
   });
 });
