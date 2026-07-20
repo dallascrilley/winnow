@@ -26,8 +26,22 @@ export default defineAction({
   }),
   run: async ({ responseId, issueJourney: issueJourneyRaw }) => {
     const db = getDb();
+    // Keep this query aligned with the public response below. In particular,
+    // never load internal ownership, contact, or LLM telemetry fields here.
     const rows = await db
-      .select()
+      .select({
+        status: schema.leads.status,
+        name: schema.leads.name,
+        fitScore: schema.leads.fitScore,
+        tier: schema.leads.tier,
+        segment: schema.leads.segment,
+        scoreReasoning: schema.leads.scoreReasoning,
+        proposal: schema.leads.proposal,
+        enrichment: schema.leads.enrichment,
+        audit: schema.leads.audit,
+        createdAt: schema.leads.createdAt,
+        updatedAt: schema.leads.updatedAt,
+      })
       .from(schema.leads)
       .where(eq(schema.leads.formResponseId, responseId))
       .limit(1);
