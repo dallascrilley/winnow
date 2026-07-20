@@ -279,3 +279,11 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   `inbound-lite-wake`; `inbound-demo` clusters empty; `residual` exit 0.
 - [docs] Runbook "six commands" + residual section; README command list.
 - No billable `up`, no destroy.
+
+## 2026-07-20 — status residual-lite cost hint
+
+- [hand] `infra/interview.sh status` prints a read-only residual inbound-lite
+  nudge (stopped EC2 state + associated EIP billable IPv4 warning) with links
+  to `residual` / `RESIDUAL-AWS.md`. Skip: `INTERVIEW_SKIP_RESIDUAL_HINT=1`.
+- [docs] status section + RESIDUAL refresh commands updated.
+- [cmd] empty-stack `status` still exit 0; residual hint appears; no destroy/up.

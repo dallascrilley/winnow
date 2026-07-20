@@ -186,14 +186,21 @@ Expect: not-found / empty for each.
 | Lite experiment | `inbound-lite*` | **No** source in this repo | Residual resources above still in account |
 
 Interview helpers (`status`, `purge-ghost`, `check-expiry`, launchd notifier)
-scope themselves to **inbound-demo** / local interview session markers. They
-will **not** page or destroy lite leftovers. Track lite cleanup as an
+scope destroy/expiry to **inbound-demo** / local interview session markers.
+`status` may print a **read-only** residual-lite cost hint (stopped instance +
+associated EIP) and point here; it will **not** page or destroy lite leftovers.
+Skip the hint with `INTERVIEW_SKIP_RESIDUAL_HINT=1`. Track lite cleanup as an
 explicit operator task using this file.
 
 ## Refresh inventory
 
 ```bash
-# cheap re-check (read-only)
+# preferred — full read-only inventory
+infra/interview.sh residual
+# or directly:
+infra/inventory-residual-aws.sh
+
+# cheap one-liners
 aws ec2 describe-instances --region us-east-1 \
   --filters Name=tag:Name,Values=inbound-lite \
   --query 'Reservations[].Instances[].State.Name' --output text

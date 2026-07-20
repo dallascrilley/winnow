@@ -94,9 +94,15 @@ the stack is down (prints "no usable terraform outputs available" instead of
 erroring; empty state avoids booting the Terraform CLI).
 
 Also detects **ghost state**: local `terraform.tfstate` still lists managed
-resources, but AWS has no live `inbound-demo` ALB/ECS service. In that case
-it prints a warning and points at `purge-ghost` rather than a dead ALB URL.
-See `docs/solutions/tooling/terraform-ghost-state-after-destroy.md`.
+resources but AWS has no live inbound-demo ALB / active ECS service (see
+`purge-ghost` below and
+`docs/solutions/tooling/terraform-ghost-state-after-destroy.md`).
+
+When leftover **inbound-lite** still looks present (e.g. stopped EC2 and/or
+an associated Elastic IP), `status` prints a short **read-only cost hint** and
+points at `infra/interview.sh residual` / `infra/RESIDUAL-AWS.md`. That is an
+operator decision surface only — never auto-teardown. Disable with
+`INTERVIEW_SKIP_RESIDUAL_HINT=1`.
 
 ### `purge-ghost`
 

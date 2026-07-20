@@ -220,6 +220,51 @@ else:
 PY
 }
 
+# Soft, read-only nudge when leftover inbound-lite still looks present.
+# Never fails status; never destroys. Skip with INTERVIEW_SKIP_RESIDUAL_HINT=1.
+report_residual_lite_hint() {
+  if [ "${INTERVIEW_SKIP_RESIDUAL_HINT:-0}" = "1" ]; then
+    return 0
+  fi
+  command -v aws >/dev/null 2>&1 || return 0
+
+  local inst_state eip_ip eip_assoc
+  inst_state=$(aws ec2 describe-instances --region "$REGION" \
+    --filters "Name=tag:Name,Values=inbound-lite" \
+    --query 'Reservations[].Instances[?State.Name!=`terminated`].State.Name | [0]' \
+    --output text 2>/dev/null || echo "")
+  eip_ip=$(aws ec2 describe-addresses --region "$REGION" \
+    --filters "Name=tag:project,Values=inbound-lite" \
+    --query 'Addresses[0].PublicIp' --output text 2>/dev/null || echo "")
+  eip_assoc=$(aws ec2 describe-addresses --region "$REGION" \
+    --filters "Name=tag:project,Values=inbound-lite" \
+    --query 'Addresses[0].AssociationId' --output text 2>/dev/null || echo "")
+
+  # Normalize AWS CLI "None"/empty
+  [ "$inst_state" = "None" ] && inst_state=""
+  [ "$eip_ip" = "None" ] && eip_ip=""
+  [ "$eip_assoc" = "None" ] && eip_assoc=""
+
+  if [ -z "$inst_state" ] && [ -z "$eip_ip" ]; then
+    return 0
+  fi
+
+  info "residual inbound-lite (not this stack)"
+  if [ -n "$inst_state" ]; then
+    say "  EC2 inbound-lite state: $inst_state"
+  fi
+  if [ -n "$eip_ip" ]; then
+    if [ -n "$eip_assoc" ]; then
+      warn "inbound-lite Elastic IP $eip_ip still associated (billable public IPv4 while held)"
+    else
+      say "  inbound-lite Elastic IP: $eip_ip (not associated)"
+    fi
+  fi
+  say "  inventory: infra/interview.sh residual"
+  say "  teardown notes (operator decision): infra/RESIDUAL-AWS.md"
+}
+
+
 # True when local state still lists managed resources but the live AWS side
 # has no inbound-demo ALB and no active ECS service. That is the "ghost state"
 # posture that breaks the next apply after a partial/manual teardown.
@@ -773,6 +818,7 @@ cmd_status() {
       say "no usable terraform outputs available — stack is likely down (or never applied)."
       info "session"
       report_session_age
+      report_residual_lite_hint
       return 0
     fi
   fi
@@ -782,10 +828,12 @@ cmd_status() {
     warn_ghost_state
     say "managed resources in local state: $managed"
     say "fix: infra/interview.sh purge-ghost"
+    report_residual_lite_hint
     return 0
   elif [ "$ghost_rc" -eq 2 ]; then
     warn "managed resources in local state: $managed — AWS probes failed, not classifying as ghost."
     warn "fix credentials/network, re-run status, then purge-ghost only if AWS is confirmed empty."
+    report_residual_lite_hint
     return 2
   fi
 
@@ -797,6 +845,9 @@ cmd_status() {
   public_url=$(tf_out_or public_url "")
   if [ -z "$alb_dns" ] && [ -z "$cluster" ] && [ -z "$service" ]; then
     say "no usable terraform outputs available — stack is likely down (or never applied)."
+    info "session"
+    report_session_age
+    report_residual_lite_hint
     return 0
   fi
   if [ -n "$alb_dns" ]; then
@@ -840,6 +891,7 @@ except Exception:
 
   info "session"
   report_session_age
+  report_residual_lite_hint
 }
 
 # ---------------------------------------------------------------------------
