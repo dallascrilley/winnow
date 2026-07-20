@@ -99,6 +99,7 @@ infra/interview.sh status        # outputs + ECS + healthz + session age; detect
 infra/interview.sh down          # destroy everything again
 infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
 infra/interview.sh check-expiry  # cron: non-zero if session older than warn/critical hours
+infra/interview.sh residual      # read-only inventory of leftover inbound-lite AWS
 ```
 
 Full runbook (DNS automation via 1Password, timings, receipts):

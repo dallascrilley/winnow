@@ -269,3 +269,13 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [hand] `infra/inventory-residual-aws.sh` — read-only re-check script.
 - [docs] README cost study + `docs/interview-mode.md` point at residual doc so
   operators do not assume `interview.sh down` cleared lite leftovers.
+
+## 2026-07-20 — residual subcommand + re-verify
+
+- [hand] `infra/interview.sh residual` → execs read-only
+  `inventory-residual-aws.sh`; usage/help updated.
+- [cmd] Re-verified live leftovers still match `infra/RESIDUAL-AWS.md`:
+  stopped `i-0240b508562452100`, EIP `32.197.109.250`, Lambda
+  `inbound-lite-wake`; `inbound-demo` clusters empty; `residual` exit 0.
+- [docs] Runbook "six commands" + residual section; README command list.
+- No billable `up`, no destroy.

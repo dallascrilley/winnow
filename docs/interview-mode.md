@@ -36,7 +36,7 @@ all of those change on every destroy + re-apply cycle.
   (dallasdotjs)") at run time and fully automates DNS + HTTPS (see below).
   Without it, everything still works over the raw ALB URL with manual DNS.
 
-## The five commands
+## The six commands
 
 ```bash
 infra/interview.sh up            # apply → build/push images → roll out → seed → smoke → receipt
@@ -44,12 +44,14 @@ infra/interview.sh status        # read-only: terraform outputs + ECS state + he
 infra/interview.sh down          # terraform destroy (typed confirmation required) → teardown receipt
 infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty (ghost state)
 infra/interview.sh check-expiry  # cron-friendly: exit non-zero if session is too old
+infra/interview.sh residual      # read-only inventory of leftover inbound-lite AWS
 ```
 
 `up`, `down`, and `purge-ghost` accept `--yes` to skip interactive confirmation
 (for scripted use); `up`'s cost warning banner always prints regardless.
 Expiry thresholds default to 3h warn / 6h critical and override via
 `INTERVIEW_EXPIRE_WARN_H` / `INTERVIEW_EXPIRE_CRITICAL_H`.
+`residual` never destroys anything and does not touch `inbound-demo`.
 
 ### `up`
 
@@ -121,6 +123,15 @@ Does **not** destroy anything. Example cron:
 */30 * * * * cd /path/to/inbound && infra/interview.sh check-expiry \
   || ntfy publish agent_alerts "inbound interview stack still up (rc=$?)"
 ```
+
+### `residual`
+
+Read-only inventory of leftover **`inbound-lite`** resources (stopped EC2,
+EIP, wake Lambda/API, ECR, SSM, S3, …). Delegates to
+`infra/inventory-residual-aws.sh` and points at `infra/RESIDUAL-AWS.md` for
+teardown notes. Exit 0 on a successful inventory probe. Never mutates AWS
+and never runs `terraform destroy`.
+
 
 ### Local launchd install (this machine)
 
@@ -210,5 +221,6 @@ Interview mode only owns the **`inbound-demo`** stack. A leftover
 **`inbound-lite`** experiment (stopped `t4g.medium`, billable Elastic IP,
 wake Lambda/API, ECR, SSM, S3 state) may still exist in account
 `221909913867`. It is out of scope for `up` / `down` / `check-expiry`.
-See [`infra/RESIDUAL-AWS.md`](../infra/RESIDUAL-AWS.md) for the live inventory
-and teardown order. Do not assume `down` cleared it.
+Re-check anytime with `infra/interview.sh residual`. Full inventory +
+teardown order: [`infra/RESIDUAL-AWS.md`](../infra/RESIDUAL-AWS.md). Do not
+assume `down` cleared it.

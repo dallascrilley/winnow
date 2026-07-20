@@ -9,6 +9,7 @@
 #   infra/interview.sh down          # destroy (asks for typed confirmation)
 #   infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
 #   infra/interview.sh check-expiry  # exit non-zero if session older than warn/critical hours
+#   infra/interview.sh residual      # read-only inventory of leftover inbound-lite AWS
 #
 # Runtime AWS identifiers (ALB DNS name, subnets, security group, image
 # repos) are read from `terraform output` or live `aws` queries — those
@@ -35,7 +36,7 @@ die()  { err "$*"; exit 1; }
 
 usage() {
   cat <<'EOF'
-Usage: infra/interview.sh <up|down|status|purge-ghost|check-expiry> [--yes]
+Usage: infra/interview.sh <up|down|status|purge-ghost|check-expiry|residual> [--yes]
 
   up            Bring the full stack up: terraform apply, build+push images,
                 force a fresh ECS deployment, wait for /healthz, run the prod
@@ -49,6 +50,8 @@ Usage: infra/interview.sh <up|down|status|purge-ghost|check-expiry> [--yes]
   check-expiry  Exit 0 if no session or still fresh; 1 if past warn hours;
                 2 if past critical hours or AWS probes failed while a marker
                 exists. Intended for cron/launchd (no auto-destroy).
+  residual      Read-only inventory of leftover inbound-lite AWS (not this
+                stack). See infra/RESIDUAL-AWS.md. Never destroys anything.
 
   --yes   Skip interactive confirmation (for scripted/CI use). Never
           bypasses the cost banner on `up`. Auto-purges ghost state on `up`.
@@ -896,6 +899,22 @@ PY
 }
 
 # ---------------------------------------------------------------------------
+# residual — read-only inbound-lite leftovers (not interview/inbound-demo)
+# ---------------------------------------------------------------------------
+
+cmd_residual() {
+  local inv="$SCRIPT_DIR/inventory-residual-aws.sh"
+  local doc="$SCRIPT_DIR/RESIDUAL-AWS.md"
+  require_cmd aws
+  [ -x "$inv" ] || die "missing executable $inv — see infra/RESIDUAL-AWS.md"
+  info "inbound-lite residual inventory (read-only; does not touch inbound-demo)"
+  if [ -f "$doc" ]; then
+    say "teardown notes: $doc"
+  fi
+  # Exec keeps exit code; inventory script never mutates AWS.
+  exec "$inv"
+}
+
 # main
 # ---------------------------------------------------------------------------
 
@@ -916,6 +935,7 @@ case "$CMD" in
   status) cmd_status ;;
   purge-ghost) cmd_purge_ghost ;;
   check-expiry) cmd_check_expiry ;;
+  residual) cmd_residual ;;
   -h|--help|"") usage; [ -n "$CMD" ] || exit 1 ;;
   *) die "unknown subcommand: $CMD" ;;
 esac

@@ -1,7 +1,7 @@
 # Residual AWS: `inbound-lite` (not interview mode)
 
 **Account:** `221909913867` · **Region:** `us-east-1`  
-**Inventory date:** 2026-07-20 (live `aws` + remote tfstate read)  
+**Inventory date:** 2026-07-20 (live `aws` + remote tfstate read; re-verified same day after `residual` subcommand polish)  
 **Do not confuse with interview mode.** The on-demand full stack uses the
 prefix **`inbound-demo`** (`infra/*.tf`, `infra/interview.sh`). That stack is
 currently **down** (empty local tfstate, no ECS/RDS/ALB). Everything below is
