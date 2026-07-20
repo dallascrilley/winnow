@@ -11,3 +11,9 @@ export const addUniqueFormResponseIdSqlite =
   "CREATE UNIQUE INDEX `leads_form_response_id_unique` ON `leads` (`form_response_id`);";
 export const addUniqueFormResponseIdPostgres =
   'ALTER TABLE "leads" ADD CONSTRAINT "leads_form_response_id_unique" UNIQUE("form_response_id");';
+
+export const addJourneyTokensSqlite =
+  "CREATE TABLE `journey_tokens` (\n\t`token_hash` text PRIMARY KEY NOT NULL,\n\t`form_response_id` text NOT NULL,\n\t`exp` text NOT NULL,\n\t`created_at` text NOT NULL\n);\n--> statement-breakpoint\nCREATE INDEX `journey_tokens_form_response_idx` ON `journey_tokens` (`form_response_id`);--> statement-breakpoint\nCREATE INDEX `journey_tokens_exp_idx` ON `journey_tokens` (`exp`);";
+
+export const addJourneyTokensPostgres =
+  'CREATE TABLE "journey_tokens" (\n\t"token_hash" text PRIMARY KEY NOT NULL,\n\t"form_response_id" text NOT NULL,\n\t"exp" text NOT NULL,\n\t"created_at" text NOT NULL\n);\n--> statement-breakpoint\nCREATE INDEX "journey_tokens_form_response_idx" ON "journey_tokens" USING btree ("form_response_id");--> statement-breakpoint\nCREATE INDEX "journey_tokens_exp_idx" ON "journey_tokens" USING btree ("exp");';

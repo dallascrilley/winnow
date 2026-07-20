@@ -12,7 +12,7 @@ import {
 } from "../server/lib/routing-evaluator.js";
 import { ROUTING_FORM_ID } from "../server/seed/team.js";
 
-interface QualifyLeadStatus {
+interface QualifyLeadRoutingContext {
   found: boolean;
   lead?: {
     id: string;
@@ -70,9 +70,9 @@ export default defineAction({
       return idempotentResult(formResponseId, existing[0]);
     }
 
-    const { found, lead } = await siblingActionFetch<QualifyLeadStatus>(
+    const { found, lead } = await siblingActionFetch<QualifyLeadRoutingContext>(
       "qualify",
-      "get-lead-status",
+      "get-lead-routing-context",
       { method: "GET", body: { responseId: formResponseId } },
     );
     if (!found || !lead) {

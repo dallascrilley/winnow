@@ -116,3 +116,20 @@ export const qualifySettings = table("qualify_settings", {
   value: text("value").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Opaque journey tokens: only sha256(token) is stored (TTL'd cross-app highlight). */
+export const journeyTokens = table(
+  "journey_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    formResponseId: text("form_response_id").notNull(),
+    exp: text("exp").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => ({
+    formResponseIdx: index("journey_tokens_form_response_idx").on(
+      t.formResponseId,
+    ),
+    expIdx: index("journey_tokens_exp_idx").on(t.exp),
+  }),
+);

@@ -1,14 +1,23 @@
 import { defineAction } from "@agent-native/core/action";
 import { eq } from "@agent-native/core/db/schema";
+import { siblingActionFetch } from "@inbound/shared/server";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
 import { AES } from "../server/seed/team.js";
 
+interface QualifyLeadRoutingContext {
+  found: boolean;
+  lead?: {
+    name: string | null;
+    email: string;
+  };
+}
+
 /**
  * Anonymous, capability-keyed read for the public booking page (the
  * formResponseId nanoid is the key). Sanitized: event type + host first
- * name, no internal ids beyond what the page needs.
+ * name + attendee prefill already collected upstream.
  */
 export default defineAction({
   description:
@@ -38,6 +47,22 @@ export default defineAction({
     const et = etRows[0];
     const ae = AES.find((a) => a.email === route.hostEmail);
 
+    let attendeeName: string | null = null;
+    let attendeeEmail: string | null = null;
+    try {
+      const ctx = await siblingActionFetch<QualifyLeadRoutingContext>(
+        "qualify",
+        "get-lead-routing-context",
+        { method: "GET", body: { responseId } },
+      );
+      if (ctx.found && ctx.lead) {
+        attendeeName = ctx.lead.name;
+        attendeeEmail = ctx.lead.email;
+      }
+    } catch {
+      // Prefill is best-effort; booking still works without it.
+    }
+
     return {
       found: true as const,
       route: {
@@ -46,6 +71,8 @@ export default defineAction({
         eventLength: et?.length ?? 30,
         hostName: ae?.name ?? route.hostEmail?.split("@")[0] ?? "the team",
         bookingUid: route.bookingUid,
+        attendeeName,
+        attendeeEmail,
       },
     };
   },

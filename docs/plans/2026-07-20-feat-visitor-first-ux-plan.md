@@ -15,13 +15,13 @@ After this ships, a portfolio visitor experiences **one guided inbound product**
 ## Progress
 
 - [x] (2026-07-20) Requirements + plan authored
-- [ ] U1 Reliability investigation + prefix-safe status/CTAs
-- [ ] U2 Form validation + redirect/`{responseId}` parity
-- [ ] U3 Journey token + public DTO hardening
-- [ ] U4 Status hero UX
-- [ ] U5 Booking prefill + slot UX
-- [ ] U6 Funnel journey highlight + shared visitor chrome
-- [ ] U7 Approvals density
+- [x] (2026-07-20) U1 Reliability investigation + prefix-safe status/CTAs
+- [x] (2026-07-20) U2 Form validation + redirect/`{responseId}` parity
+- [x] (2026-07-20) U3 Journey token + public DTO hardening
+- [x] (2026-07-20) U4 Status hero UX
+- [x] (2026-07-20) U5 Booking prefill + slot UX
+- [x] (2026-07-20) U6 Funnel journey highlight + shared visitor chrome
+- [x] (2026-07-20) U7 Approvals density
 - [ ] U8 End-to-end gateway proof + docs
 
 ## Surprises & Discoveries

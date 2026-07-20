@@ -26,17 +26,19 @@ running it locally with `pnpm dev`):
 1. **Submit the form** at
    <https://demos.dallascrilley.com/inbound/forms/f/talk-to-sales> — use a
    business email at a mid-market company with a real sentence about inbound
-   volume. (Everything is synthetic; nothing you type leaves the demo.)
+   volume, or click **Fill sample ICP (demo)** for non-persisting presets.
+   (Everything is synthetic; nothing you type leaves the demo.)
 2. **Watch your qualification** on the status page you're redirected to. It
    polls live: enrichment → the LLM's fit score **and its reasoning** → the
-   routing decision. Strong fits auto-route to an AE in about a minute.
-3. **Book the meeting** — high-fit leads get a scheduling link with real
-   availability from the routed AE's calendar (round-robin over four AEs).
-4. **Open the funnel** at
-   <https://demos.dallascrilley.com/inbound/analytics/funnel> — submissions,
-   stage conversion, tier/segment mix, median time-to-route, and the
-   qualifier's golden-set accuracy, all updating live. Your submission just
-   moved the numbers.
+   routing decision. Strong fits auto-route to an AE in about a minute. Model
+   name and cost stay off the public page.
+3. **Book the meeting** — high-fit leads get a scheduling link with name/email
+   already filled from the form, and real availability from the routed AE
+   (round-robin over four AEs).
+4. **Open the funnel** from the status page (or
+   <https://demos.dallascrilley.com/inbound/analytics/funnel>) — submissions,
+   stage conversion, tier/segment mix, median time-to-route. With a short-lived
+   opaque journey token, your stage is highlighted without exposing lead ids.
 5. **The human gate:** mid-band scores (0.4–0.79) don't route — they park in
    a review queue. The status page shows the parked state and, once a human
    approves or rejects, the audit timeline names the actor (`human`) and

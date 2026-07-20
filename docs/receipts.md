@@ -287,3 +287,21 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   to `residual` / `RESIDUAL-AWS.md`. Skip: `INTERVIEW_SKIP_RESIDUAL_HINT=1`.
 - [docs] status section + RESIDUAL refresh commands updated.
 - [cmd] empty-stack `status` still exit 0; residual hint appears; no destroy/up.
+
+## 2026-07-20 — visitor-first guided UX (form → status → book → funnel)
+
+- [hand] Prefix-safe status polls/CTAs; honest waiting state; elapsed/ETA; no
+  public model/cost/eval chrome (`apps/qualify/app/routes/status.$responseId.tsx`).
+- [hand] Form SPA parity: inline field errors + `{responseId}` redirect expand
+  (`FormFillPage` + `expand-redirect-url`); client-only sample ICP/mid-band
+  presets (no network).
+- [hand] Opaque journey tokens: `journey_tokens` table (sha256 + TTL), mint on
+  status `issueJourney=true`, public `get-journey-funnel-highlight`; funnel `?j=`
+  highlight. A2A `get-lead-routing-context` replaces public `lead.id` for
+  `route-lead` / booking prefill after DTO strip.
+- [hand] Booking prefill name/email; approvals density (A/R keys, open visitor
+  status, enrichment/industry).
+- [cmd] `pnpm --filter forms|qualify|scheduler|analytics typecheck` green;
+  forms expand-redirect tests + qualify status-path/journey pure tests pass.
+- [docs] Plan progress U1–U7; README 2-minute demo updated. Gateway full E2E
+  browser pass still optional when stack is up (U8 residual).
