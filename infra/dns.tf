@@ -1,9 +1,11 @@
-# DNS is OPTIONAL (var.manage_dns): no 1Password Cloudflare credential can see
-# the dallascrilley.com zone (checked all four CF items — zone lives in a
-# separate personal account). With manage_dns=false the apply completes with
-# the ACM cert pending and `terraform output dns_records_to_create` prints the
-# two records for the operator; the site goes live when they're added. With a
-# zone-capable token, set manage_dns=true for full automation.
+# DNS is OPTIONAL (var.manage_dns). A zone-capable token DOES exist in
+# 1Password ("Cloudflare API Token - dallascrilley.com (dallasdotjs)" —
+# verified 2026-07-20: zone visible, DNS write probe passed);
+# infra/interview.sh reads it at run time via `op read`, exports
+# TF_VAR_cloudflare_api_token, and applies with manage_dns=true for full
+# automation. With manage_dns=false the apply completes with the ACM cert
+# pending and `terraform output dns_records_to_create` prints the two
+# records for the operator; the site goes live when they're added.
 
 data "cloudflare_zone" "main" {
   count = var.manage_dns ? 1 : 0

@@ -90,6 +90,113 @@ require_tfvars() {
 }
 
 # ---------------------------------------------------------------------------
+# Cloudflare DNS automation (optional — token via 1Password)
+# ---------------------------------------------------------------------------
+# A zone-capable token lives in 1Password ("Cloudflare API Token -
+# dallascrilley.com (dallasdotjs)"); referenced here by op:// path only. The
+# value is read at run time, exported as TF_VAR_cloudflare_api_token for the
+# terraform cloudflare provider, and never written to disk or printed. When
+# op or the token is unavailable, everything falls back to the manual-DNS
+# posture (HTTP on the raw ALB name; records printed for the operator).
+CF_OP_REF="op://Private/xqtgoqisc3pvecxfiie7fxnnqy/credential"
+DNS_ZONE="dallascrilley.com"        # keep in sync with var.cloudflare_zone_name
+DNS_HOST="demos.dallascrilley.com"  # keep in sync with var.demo_hostname
+DNS_BACKUP="$SCRIPT_DIR/.interview-dns-backup.json"
+DNS_AUTO=0
+CF_TOKEN=""
+CF_ZONE_ID=""
+
+cf_api() { # cf_api <method> <path> [json-body]
+  local method="$1" path="$2" body="${3:-}"
+  if [ -n "$body" ]; then
+    curl -s -m 20 -X "$method" "https://api.cloudflare.com/client/v4${path}" \
+      -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" \
+      --data "$body"
+  else
+    curl -s -m 20 -X "$method" "https://api.cloudflare.com/client/v4${path}" \
+      -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json"
+  fi
+}
+
+dns_setup() {
+  # Best effort: enables DNS automation when op + the token + the zone are all
+  # reachable; otherwise leaves DNS_AUTO=0 and the manual posture applies.
+  command -v op >/dev/null 2>&1 || { warn "1Password CLI (op) not found — DNS stays manual"; return 0; }
+  CF_TOKEN=$(op read "$CF_OP_REF" 2>/dev/null || true)
+  [ -n "$CF_TOKEN" ] || { warn "could not read Cloudflare token from 1Password ($CF_OP_REF) — DNS stays manual"; return 0; }
+  CF_ZONE_ID=$(cf_api GET "/zones?name=${DNS_ZONE}" | python3 -c 'import sys,json
+try:
+    r = json.load(sys.stdin).get("result") or []
+    print(r[0]["id"] if r else "")
+except Exception:
+    print("")')
+  if [ -z "$CF_ZONE_ID" ]; then
+    warn "Cloudflare token cannot see zone ${DNS_ZONE} — DNS stays manual"
+    CF_TOKEN=""
+    return 0
+  fi
+  export TF_VAR_cloudflare_api_token="$CF_TOKEN"
+  DNS_AUTO=1
+  info "DNS automation enabled: zone ${DNS_ZONE} (token from 1Password)"
+}
+
+dns_backup_and_clear_host() {
+  # terraform creates the ${DNS_HOST} record with manage_dns=true; any
+  # pre-existing foreign record on that name (e.g. the Cloudflare Pages CNAME
+  # that parks there between sessions) would collide. Back it up so `down`
+  # can restore it, then delete it — unless terraform already owns the name.
+  if tf state list 2>/dev/null | grep -q '^cloudflare_record\.demo'; then
+    return 0
+  fi
+  local records count
+  records=$(cf_api GET "/zones/${CF_ZONE_ID}/dns_records?name=${DNS_HOST}")
+  count=$(printf '%s' "$records" | python3 -c 'import sys,json
+try:
+    print(len(json.load(sys.stdin).get("result") or []))
+except Exception:
+    print(0)')
+  [ "$count" -gt 0 ] || return 0
+  if [ ! -f "$DNS_BACKUP" ]; then
+    printf '%s' "$records" | python3 -c 'import sys,json
+rs = json.load(sys.stdin)["result"]
+json.dump([{k: r[k] for k in ("type","name","content","ttl","proxied")} for r in rs], sys.stdout)' > "$DNS_BACKUP"
+    info "backed up existing ${DNS_HOST} record(s) to $DNS_BACKUP"
+  fi
+  printf '%s' "$records" | python3 -c 'import sys,json
+for r in json.load(sys.stdin)["result"]:
+    print(r["id"])' | while IFS= read -r rec_id; do
+    [ -n "$rec_id" ] && cf_api DELETE "/zones/${CF_ZONE_ID}/dns_records/${rec_id}" >/dev/null
+  done
+  info "cleared pre-existing ${DNS_HOST} record(s) so terraform can own the name"
+}
+
+dns_restore_host() {
+  [ -f "$DNS_BACKUP" ] || return 0
+  if [ "$DNS_AUTO" != "1" ]; then
+    warn "DNS backup exists at $DNS_BACKUP but DNS automation is unavailable — restore it by hand"
+    return 0
+  fi
+  info "restoring pre-interview ${DNS_HOST} DNS record(s)"
+  local restore_fail=0 line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    if ! cf_api POST "/zones/${CF_ZONE_ID}/dns_records" "$line" \
+        | python3 -c 'import sys,json
+sys.exit(0 if json.load(sys.stdin).get("success") else 1)' 2>/dev/null; then
+      restore_fail=1
+    fi
+  done < <(python3 -c 'import json,sys
+for r in json.load(open(sys.argv[1])):
+    print(json.dumps(r))' "$DNS_BACKUP")
+  if [ "$restore_fail" = "0" ]; then
+    rm -f "$DNS_BACKUP"
+    info "DNS restore complete"
+  else
+    warn "some DNS records failed to restore — backup kept at $DNS_BACKUP"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # up
 # ---------------------------------------------------------------------------
 
@@ -106,6 +213,8 @@ cmd_up() {
   aws sts get-caller-identity --region "$REGION" >/dev/null \
     || die "AWS credentials not available (aws sts get-caller-identity failed). Configure them and retry."
 
+  dns_setup
+
   if [ "$ASSUME_YES" != "1" ]; then
     read -r -p "Continue bringing the stack up? [y/N] " reply
     case "$reply" in y|Y|yes|YES) ;; *) die "aborted — nothing changed." ;; esac
@@ -114,17 +223,30 @@ cmd_up() {
   info "terraform init (idempotent)"
   tf init -input=false
 
-  info "terraform apply"
   # -input=false disables terraform's interactive approval prompt, which makes
   # a bare apply error out; the script's own confirmation above is the gate.
-  tf apply -input=false -auto-approve
+  if [ "$DNS_AUTO" = "1" ]; then
+    dns_backup_and_clear_host
+    info "terraform apply (phase 1: stack + DNS records; waits for ACM cert validation)"
+    tf apply -input=false -auto-approve -var manage_dns=true
+    info "terraform apply (phase 2: attach HTTPS listener + HTTP->HTTPS redirect)"
+    tf apply -input=false -auto-approve -var manage_dns=true -var cert_validated=true
+  else
+    info "terraform apply (manual-DNS posture: HTTP on the raw ALB name)"
+    tf apply -input=false -auto-approve
+  fi
 
   local alb_dns cluster service public_prefix
   alb_dns=$(tf_out alb_dns_name)
   cluster=$(tf_out ecs_cluster)
   service=$(tf_out ecs_service)
   public_prefix=$(tf_out public_prefix)
-  local base_url="http://${alb_dns}${public_prefix}"
+  local base_url
+  if [ "$DNS_AUTO" = "1" ]; then
+    base_url="https://${DNS_HOST}${public_prefix}"
+  else
+    base_url="http://${alb_dns}${public_prefix}"
+  fi
 
   info "ALB: $alb_dns  cluster: $cluster  service: $service"
   info "working URL for this session: $base_url"
@@ -271,7 +393,7 @@ print_up_receipt() {
 ## $(date -u +%Y-%m-%d) — Interview mode: up
 
 - [cmd] \`infra/interview.sh up\` — git rev \`$git_rev\`
-- [state] ALB URL (http, until DNS repointed): $base_url
+- [state] base URL: $base_url$([ "$DNS_AUTO" = "1" ] && printf ' (DNS + HTTPS automated via 1Password Cloudflare token)' || printf ' (manual-DNS posture — raw ALB over http)')
 - [state] app image: $app_repo@$app_digest
 - [state] ollama image: $ollama_repo@$ollama_digest
 - [state] $smoke_status
@@ -294,6 +416,12 @@ cmd_down() {
     warn "no terraform state / outputs found — stack may already be down."
   fi
 
+  dns_setup
+  if [ "$DNS_AUTO" != "1" ] && tf state list 2>/dev/null | grep -q '^cloudflare_record\.'; then
+    warn "state contains Cloudflare DNS records but no zone token is available —"
+    warn "terraform destroy will fail on them; make the 1Password token readable and retry."
+  fi
+
   confirm "This will DESTROY the inbound-demo AWS stack (ECS, RDS, ALB, ECR, SSM, ACM cert)." "destroy inbound-demo"
 
   local git_rev
@@ -302,6 +430,8 @@ cmd_down() {
   info "terraform destroy"
   # see cmd_up: -input=false + -auto-approve; the typed confirm above is the gate
   tf destroy -input=false -auto-approve
+
+  dns_restore_host
 
   cat <<EOF
 

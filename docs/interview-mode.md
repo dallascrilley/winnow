@@ -31,6 +31,10 @@ all of those change on every destroy + re-apply cycle.
   killed — restart it after `up` finishes if you still need it.
 - `terraform`, `aws`, `python3`, `git`, and `timeout` (GNU coreutils —
   `brew install coreutils` on macOS) on `PATH`.
+- **1Password CLI (`op`), optional but recommended**: with it, `up` reads the
+  zone-capable Cloudflare token ("Cloudflare API Token - dallascrilley.com
+  (dallasdotjs)") at run time and fully automates DNS + HTTPS (see below).
+  Without it, everything still works over the raw ALB URL with manual DNS.
 
 ## The three commands
 
@@ -46,10 +50,12 @@ scripted use); `up`'s cost warning banner always prints regardless.
 ### `up`
 
 1. Checks AWS credentials and `terraform.tfvars`, prints the cost banner,
+   probes 1Password for the Cloudflare token (sets the DNS posture), and
    confirms interactively (unless `--yes`).
-2. `terraform init` + `terraform apply` (default posture:
-   `cert_validated=false`, `manage_dns=false` — HTTP only, no Cloudflare
-   automation; see the DNS caveat below).
+2. `terraform init` + `terraform apply`. With the token: two-phase apply —
+   stack + DNS records + ACM validation, then the HTTPS listener — and the
+   session runs at `https://demos.dallascrilley.com/inbound`. Without it:
+   single apply, HTTP on the raw ALB name (see the DNS section below).
 3. Builds and pushes the app image and the ollama sidecar image (baked with
    `qwen3:4b`) via `infra/push-images.sh`, retrying up to 3 times — a
    transient OrbStack buildkit "exporting to image" EOF is common and just
@@ -91,29 +97,36 @@ terraform outputs available" instead of erroring).
 A full `up` from a cold `terraform destroy`d state can take 30-45 minutes
 end to end. `down` (terraform destroy) is typically a few minutes.
 
-## DNS caveat — read before joining a call
+## DNS — automated when 1Password is available
 
 The ALB gets a **new DNS name on every `terraform apply` after a
-`destroy`**. `demos.dallascrilley.com` is a CNAME pointed at the *previous*
-ALB's DNS name — that CNAME does not follow automatically (the
-`dallascrilley.com` zone lives in a Cloudflare account no automation here can
-reach; `manage_dns` stays `false`). Until the CNAME is repointed:
+`destroy`**, so `demos.dallascrilley.com` must be repointed each session.
+`up` handles this automatically when the 1Password CLI can read the
+zone-capable token ("Cloudflare API Token - dallascrilley.com
+(dallasdotjs)", verified 2026-07-20 with a live DNS write probe):
 
-- **Use the raw ALB URL over `http`**, e.g.
-  `http://<alb-dns-name>/inbound` — `interview.sh up` prints this as the
-  "working URL for this session" and it's what `status`/smoke/healthz use.
-- `demos.dallascrilley.com/inbound` will **not** work until an operator
-  (Dallas) manually updates the Cloudflare CNAME record to the new
-  `alb_dns_name` from `terraform output`.
-- HTTPS on the custom domain additionally requires re-validating the ACM
-  cert (new cert per apply, since it's tied to the ALB/cert lifecycle) and
-  re-applying with `-var cert_validated=true` — an operator step, not part
-  of `up`. `terraform output dns_records_to_create` prints the exact
-  records needed.
+- The token is read at run time (`op read`), exported as
+  `TF_VAR_cloudflare_api_token`, and never written to disk.
+- Any pre-existing `demos.dallascrilley.com` record (a Cloudflare Pages
+  CNAME parks there between sessions) is **backed up to
+  `infra/.interview-dns-backup.json` and removed** so terraform can own the
+  name; `down` restores it after destroy.
+- Apply runs in two phases: phase 1 (`manage_dns=true`) creates the stack,
+  the ACM validation records, and the demos CNAME, and waits for the cert
+  to validate; phase 2 (`cert_validated=true`) attaches the HTTPS listener
+  and the HTTP→HTTPS redirect.
+- The working URL for the session is then simply
+  **`https://demos.dallascrilley.com/inbound`**, and healthz/seed/smoke all
+  run against it.
 
-For a same-session interview, the plain HTTP ALB URL is normal and fine —
-just don't rely on the pretty custom domain unless DNS was repointed ahead
-of time.
+**Manual fallback** (no `op`, token unreadable, or zone not visible): `up`
+warns, applies with `manage_dns=false`, and the session runs on the raw ALB
+URL over `http` (printed as the "working URL"). An operator can still
+repoint the CNAME by hand from `terraform output alb_dns_name` and validate
+the cert via `terraform output dns_records_to_create` +
+`-var cert_validated=true`. On `down`, if a DNS backup exists but the token
+is unavailable, the script warns and keeps the backup file for a manual
+restore.
 
 ## Capturing the receipt
 
