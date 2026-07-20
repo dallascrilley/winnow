@@ -62,7 +62,7 @@ Gateway shapes (must all work): direct app port, dev workspace gateway, prod `/i
 ### Terms
 
 - **Capability URL:** unguessable path key (nanoid response id) authorizing anonymous read/act for that submission only.
-- **Journey token:** short-lived signed token binding a submission for cross-app highlight/CTAs without putting raw ids in novel query params.
+- **Journey token:** short-lived **opaque** random id mapped server-side (hash → formResponseId); used for cross-app highlight/CTAs without putting raw ids in novel query params. Integrity comes from lookup existence + TTL, not client-verifiable signatures.
 - **Demo gate:** env/flag or authenticated presenter mode enabling sample recipes; off by default in any non-demo deploy posture.
 
 ## Requirements
@@ -213,7 +213,7 @@ Gateway shapes (must all work): direct app port, dev workspace gateway, prod `/i
 
 ## Open questions
 
-- None blocking. Token signing secret: reuse existing org/A2A material vs `JOURNEY_TOKEN_SECRET` — **default:** dedicated env with fallback to existing server secret only in demo, documented in U3.
+- None blocking. Requirements R8/R11 updated 2026-07-20 to match opaque tokens + client-only sample fill. Token storage: qualify DB table preferred; in-memory only acceptable for single-process demo with documented restart loss.
 
 ## Validation and Acceptance (release bar)
 
@@ -236,7 +236,7 @@ Gateway shapes (must all work): direct app port, dev workspace gateway, prod `/i
 
 - Existing: `process-lead`, `get-lead-status`, `get-public-funnel`, `get-route`, `route-slots`, `book-lead`, `decide-lead-approval`, forms submit `{ success, id }`.
 - New: journey token helpers; optional `get-journey-funnel-highlight`; optional booking prefill fields on `get-route`.
-- No new npm dependencies unless crypto convenience already in repo — prefer `crypto` HMAC.
+- No new npm dependencies — Node `crypto` only (`randomBytes`, `createHash`).
 
 ## Artifacts and Notes
 
@@ -246,3 +246,4 @@ Gateway shapes (must all work): direct app port, dev workspace gateway, prod `/i
 ## Revision History
 
 - 2026-07-20: Initial plan from visitor-first design + codebase evidence.
+- 2026-07-20: R8/R11 alignment — opaque server-mapped tokens (not signed JSON); sample fill client-only vs seed auth.

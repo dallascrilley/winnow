@@ -17,10 +17,10 @@ origin: conversation design (visitor-first guided journey)
 - R5. `talk-to-sales` post-submit continues the guided journey by default; an explicit publisher `redirectUrl` is still honored; `{responseId}` (or successor token placeholder) expands on **both** SSR and React submit paths.
 - R6. Status shows honest progress when the lead is not yet created, soft ETA while active, progressive reasoning, and strong terminal CTAs.
 - R7. Booking prefills name/email already collected on the lead; does not force re-entry when present.
-- R8. Funnel can acknowledge “your submission advanced” via a **short-lived signed journey token**, not a raw `responseId` query param; aggregates stay free of lead identifiers.
+- R8. Funnel can acknowledge “your submission advanced” via a **short-lived opaque journey token** (random id + server-side hash map to formResponseId), not a raw `responseId` query param and not base64/HMAC JSON carrying readable ids; aggregates stay free of lead identifiers.
 - R9. Public visitor chrome does **not** show model name, LLM cost, or eval accuracy (operator/debug only).
 - R10. Public status/booking DTOs omit internal ids (`lead.id`) and do not require the client to echo raw transport ids beyond the capability already in the URL path; regression tests cover identifier leakage.
-- R11. Sample ICP / mid-band fill (and any seed) is **demo-gated and server-authorized**, not open anonymous mutation.
+- R11. **Client-only** sample ICP/mid-band field presets may run anonymously (no network). Any action that **creates** leads/queue rows is demo-gated and server-authorized (session/presenter), not open anonymous mutation.
 - R12. Capability URLs use short TTL where newly introduced tokens apply, and public pages set `Referrer-Policy: no-referrer` (or equivalent) so tokens do not leak via Referer.
 - R13. Operator approvals remain session-gated and gain dense context + open-visitor-status + keyboard approve/reject without weakening auth.
 - R14. Mid-band approve/reject is completable in under ~15 seconds with full reasoning/enrichment visible.
@@ -37,7 +37,7 @@ origin: conversation design (visitor-first guided journey)
 
 - Visitor-first, then operator — not operator-first.
 - Reliability before chrome.
-- Journey token for cross-app “mine” highlight; existing path capability (`/status/:id`, `/book/:id`) may remain nanoid-based initially if treated as unguessable capabilities, but new query/deep-link surfaces must not mint raw id leakage; public JSON drops `lead.id`.
+- Journey token for cross-app “mine” highlight is an **opaque server-mapped** capability (not signed readable payload); existing path capability (`/status/:id`, `/book/:id`) may remain nanoid-based initially; public JSON drops `lead.id`.
 - Honor configured `redirectUrl`; guided default only when using seed/default talk-to-sales contract.
 
 ## Prior learnings applied
