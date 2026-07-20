@@ -24,6 +24,8 @@ export default defineAction({
     /** Query flag from status page; only the string "true" mints a token. */
     issueJourney: z.string().optional(),
   }),
+  http: { method: "POST" },
+  requiresAuth: false,
   run: async ({ responseId, issueJourney: issueJourneyRaw }) => {
     const db = getDb();
     const rows = await db

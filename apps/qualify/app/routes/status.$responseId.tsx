@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 
 import {
   apiBaseFromPathname,
+  statusLookupState,
   workspacePrefixFromApiBase,
 } from "../lib/status-path";
 
@@ -140,6 +141,10 @@ export default function LeadStatusPage() {
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
+  const [statusLinkState, setStatusLinkState] = useState<
+    "pending" | "invalid"
+  >("pending");
+  const missingStatusPolls = useRef(0);
   const timer = useRef<number | undefined>(undefined);
   const clock = useRef<number | undefined>(undefined);
 
@@ -155,6 +160,8 @@ export default function LeadStatusPage() {
     if (!responseId) return;
     let cancelled = false;
     let issuedJourney = false;
+    missingStatusPolls.current = 0;
+    setStatusLinkState("pending");
 
     const tick = async () => {
       try {
@@ -176,12 +183,25 @@ export default function LeadStatusPage() {
         if (!cancelled) {
           setPayload(data);
           setError(null);
-          if (data.found && data.lead.journeyToken) {
-            issuedJourney = true;
-            setJourneyToken((prev) => prev ?? data.lead.journeyToken ?? null);
-          } else if (data.found) {
-            // Lead exists; stop re-requesting journey mint after first found poll.
-            issuedJourney = wantJourney;
+          if (data.found) {
+            missingStatusPolls.current = 0;
+            setStatusLinkState("pending");
+            if (data.lead.journeyToken) {
+              issuedJourney = true;
+              setJourneyToken((prev) => prev ?? data.lead.journeyToken ?? null);
+            } else {
+              // Lead exists; stop re-requesting journey mint after first found poll.
+              issuedJourney = wantJourney;
+            }
+          } else {
+            missingStatusPolls.current += 1;
+            const nextStatusLinkState = statusLookupState(
+              missingStatusPolls.current,
+            );
+            setStatusLinkState(nextStatusLinkState);
+            if (nextStatusLinkState === "invalid") {
+              window.clearInterval(timer.current);
+            }
           }
         }
       } catch (err) {
@@ -201,7 +221,9 @@ export default function LeadStatusPage() {
   }, [responseId, bases.api]);
 
   const lead = payload?.found ? payload.lead : null;
-  const waitingForLead = payload !== null && !payload.found;
+  const invalidStatusLink = statusLinkState === "invalid";
+  const waitingForLead =
+    payload !== null && !payload.found && !invalidStatusLink;
   const currentStage = lead ? stageIndex(lead.status) : 0;
   const bookHref = responseId
     ? `${bases.workspace}/scheduler/book/${encodeURIComponent(responseId)}`
@@ -218,7 +240,9 @@ export default function LeadStatusPage() {
           <h1 className="mt-1 text-2xl font-semibold">
             {lead
               ? `Hi${lead.name ? ` ${lead.name.split(" ")[0]}` : ""}, your request is being worked`
-              : "Qualifying your request"}
+              : invalidStatusLink
+                ? "This status link is invalid"
+                : "Qualifying your request"}
           </h1>
           {lead && !TERMINAL.has(lead.status) && (
             <p className="mt-2 text-xs text-zinc-500">
@@ -229,6 +253,12 @@ export default function LeadStatusPage() {
             <p className="mt-2 text-xs text-zinc-500">
               Submission received — waiting for the agent to open your case
               (usually under a minute).
+            </p>
+          )}
+          {invalidStatusLink && (
+            <p className="mt-2 text-xs text-zinc-500">
+              We couldn't verify this status link. Submit a new request to
+              create a fresh link.
             </p>
           )}
         </div>
@@ -245,7 +275,7 @@ export default function LeadStatusPage() {
             : false;
           const active = lead
             ? i === currentStage && !TERMINAL.has(lead.status)
-            : i === 0 && !lead;
+            : i === 0 && !lead && !invalidStatusLink;
           return (
             <li
               key={stage.key}
