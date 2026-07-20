@@ -20,6 +20,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
   useNavigate,
 } from "react-router";
 import type { LinksFunction } from "react-router";
@@ -158,7 +159,7 @@ function AppContent() {
   );
 }
 
-export default function Root() {
+function AuthenticatedRoot() {
   const [queryClient] = useState(() => createAgentNativeQueryClient());
   return (
     <AppToolkitProvider>
@@ -168,6 +169,18 @@ export default function Root() {
       </AppProviders>
     </AppToolkitProvider>
   );
+}
+
+export default function Root() {
+  const { pathname } = useLocation();
+
+  // The public status route has no session-bound controls or query state. Keep
+  // it out of the authenticated app shell so gateway visitors can hydrate the
+  // actual status surface instead of the workspace chrome.
+  if (/\/status\/[^/]+\/?$/.test(pathname)) {
+    return <Outlet />;
+  }
+  return <AuthenticatedRoot />;
 }
 
 export { ErrorBoundary } from "@agent-native/core/client";

@@ -16,8 +16,6 @@ interface AuditEntry {
   at: string;
   actor: "agent" | "human" | "system";
   event: string;
-  detail?: string;
-  channel?: string;
 }
 
 interface LeadStatus {
@@ -26,20 +24,11 @@ interface LeadStatus {
   fitScore: number | null;
   tier: string | null;
   segment: string | null;
-  scoreReasoning: string | null;
   proposal: {
-    action?: string;
-    eventTypeSlug?: string;
-    reason?: string;
-  } | null;
-  enrichment: {
-    company?: string | null;
-    domain?: string | null;
-    title?: string | null;
+    eventTypeSlug: "discovery" | "deep-dive";
   } | null;
   audit: AuditEntry[];
   createdAt: string;
-  updatedAt: string;
   journeyToken?: string | null;
 }
 
@@ -297,14 +286,6 @@ export default function LeadStatusPage() {
               </span>
             )}
           </div>
-          {lead.scoreReasoning && (
-            <blockquote className="mt-4 border-l-2 border-zinc-700 pl-4 text-sm text-zinc-300">
-              {lead.scoreReasoning}
-            </blockquote>
-          )}
-          {lead.proposal?.reason && (
-            <p className="mt-4 text-sm text-zinc-400">{lead.proposal.reason}</p>
-          )}
         </section>
       )}
 
@@ -408,18 +389,10 @@ export default function LeadStatusPage() {
               <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium">{entry.event}</span>
-                  {entry.channel && (
-                    <span className="text-xs text-zinc-500">
-                      via {entry.channel}
-                    </span>
-                  )}
                   <span className="ml-auto flex-none text-xs text-zinc-500">
                     {timeLabel(entry.at)}
                   </span>
                 </div>
-                {entry.detail && (
-                  <p className="mt-1 text-sm text-zinc-400">{entry.detail}</p>
-                )}
               </div>
             </li>
           ))}
