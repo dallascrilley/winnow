@@ -94,22 +94,24 @@ Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
 DNS.
 
 ```bash
-infra/interview.sh up     # apply (~15 min) → build+push images → roll out →
-                          # wait for healthz → seed (one-off ECS run-task) →
-                          # smoke test → dated receipt block
-infra/interview.sh down   # destroy everything again
+infra/interview.sh up           # apply (~15 min) → build+push images → roll out →
+                                # wait for healthz → seed (one-off ECS run-task) →
+                                # smoke test → dated receipt block
+infra/interview.sh status       # outputs + ECS + healthz; detects ghost local state
+infra/interview.sh down         # destroy everything again
+infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty
 ```
+
+Full runbook (DNS automation via 1Password, timings, receipts):
+[`docs/interview-mode.md`](docs/interview-mode.md).
 
 Each step can also be run by hand (`terraform apply`, `infra/push-images.sh`,
 `aws ecs update-service --force-new-deployment`, a `run-task` seed, then
-`./scripts/smoke.sh <base-url>`) — the script just sequences them and reads
-every identifier from `terraform output`, since ALB/subnet/SG names change on
-every re-apply.
-
-DNS is the one operator step: no available Cloudflare credential can see the
-zone, so `terraform output dns_records_to_create` prints the ACM validation
-CNAME + the demos CNAME to add by hand (or set `manage_dns=true` with a
-zone-capable token).
+`./scripts/smoke.sh <base-url>`) — the script sequences them and reads
+runtime identifiers from `terraform output`, since ALB/subnet/SG names change
+on every re-apply. With a zone-capable Cloudflare token in 1Password, `up`
+automates DNS + HTTPS; otherwise it prints the records to add by hand (see
+the runbook).
 
 The stack applies clean from scratch and is destroyed again between proof
 runs rather than left running — see the cost case study below for why, and

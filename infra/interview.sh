@@ -4,14 +4,15 @@
 # session = one `up`, then `down` before you walk away. See
 # docs/interview-mode.md for the full runbook, prerequisites, and timings.
 #
-#   infra/interview.sh up       # apply, push images, roll out, seed, smoke
-#   infra/interview.sh status   # read-only: outputs + ECS state + healthz
-#   infra/interview.sh down     # destroy (asks for typed confirmation)
+#   infra/interview.sh up           # apply, push images, roll out, seed, smoke
+#   infra/interview.sh status       # read-only: outputs + ECS state + healthz
+#   infra/interview.sh down         # destroy (asks for typed confirmation)
+#   infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty
 #
-# Every AWS identifier (ALB DNS name, subnets, security group, cluster,
-# service, image repos) is read from `terraform output` or an `aws` query at
-# run time. Nothing here is hardcoded — the ALB DNS name, subnet ids, and SG
-# id all change on every destroy + re-apply cycle.
+# Runtime AWS identifiers (ALB DNS name, subnets, security group, image
+# repos) are read from `terraform output` or live `aws` queries — those
+# change every destroy + re-apply. The stack name prefix `inbound-demo`
+# matches `local.name` in infra/main.tf and is the stable probe key.
 set -euo pipefail
 
 SCRIPT_DIR="$(unset CDPATH; cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -109,28 +110,57 @@ tf_managed_count() {
 # has no inbound-demo ALB and no active ECS service. That is the "ghost state"
 # posture that breaks the next apply after a partial/manual teardown.
 # See docs/solutions/tooling/terraform-ghost-state-after-destroy.md.
+#
+# Returns:
+#   0  ghost (safe to purge)
+#   1  not ghost (empty state, or AWS still has live resources)
+#   2  indeterminate (AWS probe failed — do NOT purge)
 is_ghost_state() {
-  local n cluster service alb_arn svc_status
+  local n cluster service alb_rc alb_err alb_arn svc_rc svc_err svc_status
   n=$(tf_managed_count)
   n=${n//[[:space:]]/}
   [ -n "$n" ] && [ "$n" -gt 0 ] 2>/dev/null || return 1
 
-  # Fixed names from infra/*.tf (locals / resource names). Do not parse ALB DNS.
+  # Fixed names from infra/*.tf locals.name ("inbound-demo"). Do not parse ALB DNS.
   cluster=$(tf_out_or ecs_cluster "inbound-demo")
   service=$(tf_out_or ecs_service "inbound-demo")
 
+  # Capture stderr separately so auth/network failures are not treated as "gone".
+  alb_err=$(mktemp "${TMPDIR:-/tmp}/inbound-alb.XXXXXX")
   alb_arn=$(aws elbv2 describe-load-balancers --region "$REGION" --names inbound-demo \
-    --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo none)
+    --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>"$alb_err") && alb_rc=0 || alb_rc=$?
   case "$alb_arn" in
-    arn:*) return 1 ;;
+    arn:*) rm -f "$alb_err"; return 1 ;;
   esac
+  if [ "$alb_rc" -ne 0 ]; then
+    # LoadBalancerNotFound is the only "gone" signal we accept.
+    if ! grep -qiE 'LoadBalancerNotFound|Cannot find load balancer' "$alb_err" 2>/dev/null; then
+      warn "AWS ALB probe failed (rc=$alb_rc) — cannot classify ghost state safely:"
+      sed 's/^/  /' "$alb_err" >&2 || true
+      rm -f "$alb_err"
+      return 2
+    fi
+  fi
+  rm -f "$alb_err"
 
+  svc_err=$(mktemp "${TMPDIR:-/tmp}/inbound-ecs.XXXXXX")
   svc_status=$(aws ecs describe-services --region "$REGION" \
     --cluster "$cluster" --services "$service" \
-    --query 'services[0].status' --output text 2>/dev/null || echo none)
+    --query 'services[0].status' --output text 2>"$svc_err") && svc_rc=0 || svc_rc=$?
   case "$svc_status" in
-    ACTIVE|DRAINING) return 1 ;;
+    ACTIVE|DRAINING) rm -f "$svc_err"; return 1 ;;
   esac
+  if [ "$svc_rc" -ne 0 ]; then
+    # Missing cluster/service is fine (stack down). Auth/throttle/network is not.
+    if grep -qiE 'Unable to locate credentials|ExpiredToken|AccessDenied|Throttl|Could not connect|NetworkingError|Could not connect to the endpoint' "$svc_err" 2>/dev/null \
+       || grep -qiE 'UnauthorizedException|UnrecognizedClientException|InvalidClientTokenId' "$svc_err" 2>/dev/null; then
+      warn "AWS ECS probe failed (rc=$svc_rc) — cannot classify ghost state safely:"
+      sed 's/^/  /' "$svc_err" >&2 || true
+      rm -f "$svc_err"
+      return 2
+    fi
+  fi
+  rm -f "$svc_err"
 
   return 0
 }
@@ -178,7 +208,13 @@ cmd_purge_ghost() {
   require_cmd terraform
   require_cmd aws
   require_cmd python3
-  if ! is_ghost_state; then
+  local rc=0
+  is_ghost_state || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    :
+  elif [ "$rc" -eq 2 ]; then
+    die "AWS probes failed — refusing to purge. Fix credentials/network and retry status."
+  else
     local n
     n=$(tf_managed_count)
     n=${n//[[:space:]]/}
@@ -326,7 +362,9 @@ cmd_up() {
   aws sts get-caller-identity --region "$REGION" >/dev/null \
     || die "AWS credentials not available (aws sts get-caller-identity failed). Configure them and retry."
 
-  if is_ghost_state; then
+  local ghost_rc=0
+  is_ghost_state || ghost_rc=$?
+  if [ "$ghost_rc" -eq 0 ]; then
     warn_ghost_state
     if [ "$ASSUME_YES" = "1" ]; then
       info "auto-purging ghost state (--yes)"
@@ -335,6 +373,8 @@ cmd_up() {
       read -r -p "Purge ghost state now so apply starts clean? [y/N] " reply
       case "$reply" in y|Y|yes|YES) purge_ghost_state ;; *) die "aborted — purge with 'infra/interview.sh purge-ghost' then retry up." ;; esac
     fi
+  elif [ "$ghost_rc" -eq 2 ]; then
+    die "AWS probes failed while checking for ghost state — fix credentials/network and retry."
   fi
 
   dns_setup
@@ -562,11 +602,15 @@ cmd_down() {
   remaining=${remaining//[[:space:]]/}
   if [ -n "$remaining" ] && [ "$remaining" -gt 0 ] 2>/dev/null; then
     warn "terraform destroy finished but local state still lists $remaining managed resources."
-    if is_ghost_state; then
+    local ghost_rc=0
+    is_ghost_state || ghost_rc=$?
+    if [ "$ghost_rc" -eq 0 ]; then
       warn_ghost_state
       warn "auto-purging ghost leftovers so the next up starts clean."
       purge_ghost_state
       remaining=0
+    elif [ "$ghost_rc" -eq 2 ]; then
+      warn "AWS probes failed — left local state intact. Re-run status when credentials work, then purge-ghost if needed."
     else
       warn "AWS still reports a live inbound-demo ALB or ECS service — inspect before the next up."
     fi
@@ -603,11 +647,17 @@ cmd_status() {
     return 0
   fi
 
-  if is_ghost_state; then
+  local ghost_rc=0
+  is_ghost_state || ghost_rc=$?
+  if [ "$ghost_rc" -eq 0 ]; then
     warn_ghost_state
     say "managed resources in local state: $managed"
     say "fix: infra/interview.sh purge-ghost"
     return 0
+  elif [ "$ghost_rc" -eq 2 ]; then
+    warn "managed resources in local state: $managed — AWS probes failed, not classifying as ghost."
+    warn "fix credentials/network, re-run status, then purge-ghost only if AWS is confirmed empty."
+    return 2
   fi
 
   local alb_dns cluster service public_prefix public_url base_url

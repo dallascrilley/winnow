@@ -216,3 +216,17 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [cmd] Injected a one-resource fake ghost state → `status` printed GHOST
   warning (exit 0); `purge-ghost --yes` emptied state (serial bumped,
   backup written); final `status` → stack-down message. `bash -n` PASS.
+
+## 2026-07-20 — Ghost detection refuses AWS probe failures
+
+- [bug] `is_ghost_state` treated any non-live ALB/ECS response as "gone", so
+  auth/network failures could look like ghost state and invite a purge of a
+  still-valid local state while AWS was merely unreachable.
+- [fix] Probes capture stderr; ALB only counts as gone on
+  `LoadBalancerNotFound`; ECS auth/throttle/network errors return rc=2
+  (indeterminate). `status` exits 2, `purge-ghost`/`up` refuse to purge,
+  `down` leaves state intact with a warning.
+- [docs] README deploy block lists `status` + `purge-ghost`; script header
+  matches the four commands and notes `inbound-demo` is the stable name key.
+- [cmd] Fake ghost + good creds → GHOST warning; same state + invalid AWS
+  keys → no GHOST line, purge refused; final state empty.

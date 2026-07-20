@@ -74,6 +74,11 @@ equivalent to “all resources already gone” without asking AWS to delete
 anything. Detection uses fixed resource names (`inbound-demo` ALB + ECS
 service status), not parsed ALB DNS strings.
 
+Detection returns three outcomes: ghost (safe to purge), not-ghost (live AWS
+or empty state), and **indeterminate** when AWS probes fail for auth/network
+reasons. Indeterminate must never purge — only `LoadBalancerNotFound` (and a
+non-ACTIVE ECS service under working credentials) counts as gone.
+
 ## Prevention
 
 - After every `infra/interview.sh down`, count managed addresses in local
