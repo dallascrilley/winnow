@@ -179,3 +179,26 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [note] Local dev is unaffected: `pnpm dev` plus offline Ollama (`qwen3:4b`)
   scoring stays fully live at all times. Activation runbook and receipt
   format land in `docs/interview-mode.md` (companion `infra/interview.sh`).
+
+## 2026-07-20 — Interview script CDPATH fix + ghost state purge
+
+- [bug] `infra/interview.sh status` died before any AWS work when `CDPATH`
+  was set (this machine: `.:~:~/Code:/Volumes`). `SCRIPT_DIR="$(cd … &&
+  pwd)"` captured the path `cd` prints under CDPATH, so the value became a
+  two-line string and the next `cd` failed. Same footgun in
+  `infra/push-images.sh`.
+- [fix] Path bootstrap now `unset CDPATH` before `cd -- … && pwd`
+  (`ce576ad`). `cmd_status` also tolerates missing/newer outputs
+  (`tf_out_or`, default `public_prefix=/inbound`) so a partial teardown no
+  longer hard-dies on `public_prefix`.
+- [state] Local `infra/terraform.tfstate` still listed 34 managed resources
+  after the 2026-07-19 destroy, but live AWS probes found **zero** residual
+  inbound-demo resources (ECR, ECS service, ALB, RDS, IAM roles, SGs, SSM,
+  ACM, log group all gone; ECS cluster `INACTIVE`). Ghost state would have
+  made the next `up` reconcile against missing IDs. Purged to an empty
+  state file (serial 44, same lineage), with backups kept gitignored as
+  `infra/terraform.tfstate.pre-purge.*` and
+  `infra/terraform.tfstate.ghost-cleared.*`.
+- [cmd] `infra/interview.sh status` →
+  `no usable terraform outputs available — stack is likely down (or never
+  applied).` (exit 0). `bash -n` clean on both scripts.
