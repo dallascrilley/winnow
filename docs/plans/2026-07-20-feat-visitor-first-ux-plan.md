@@ -22,7 +22,7 @@ After this ships, a portfolio visitor experiences **one guided inbound product**
 - [x] (2026-07-20) U5 Booking prefill + slot UX
 - [x] (2026-07-20) U6 Funnel journey highlight + shared visitor chrome
 - [x] (2026-07-20) U7 Approvals density
-- [ ] U8 End-to-end gateway proof + docs
+- [x] (2026-07-20) U8 End-to-end gateway proof + docs
 
 ## Surprises & Discoveries
 

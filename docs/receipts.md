@@ -305,3 +305,14 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   forms expand-redirect tests + qualify status-path/journey pure tests pass.
 - [docs] Plan progress U1–U7; README 2-minute demo updated. Gateway full E2E
   browser pass still optional when stack is up (U8 residual).
+
+## 2026-07-20 — visitor-first U8 gateway proof (local)
+
+- Reclaimed disk (`ENOSPC` had blocked vite) — Data volume free space restored.
+- `agent-native dev --port 8888` from worktree `feat/visitor-first-ux`.
+- Planted lead `formResponseId=e2e_visitor_mrtlnczu` (status=routed).
+- **DTO:** POST `get-lead-status` returns found lead **without** `id`/`llmModel`/`llmCostUsd`; issues opaque `journeyToken`.
+- **Token:** GET `get-journey-funnel-highlight?token=…` → `{found, advanced, stageLabel:"routed"}`; garbage tokens → `{found:false}` no 500.
+- **SSR form:** talk-to-sales redirect template still expands `{responseId}` (SSR) to `/qualify/status/{responseId}`.
+- **Browser (gateway):** `/qualify/status/e2e_visitor_mrtlnczu` hydrates — "Hi E2E", score 0.91, Pick a time → `/scheduler/book/e2e_visitor_mrtlnczu`, funnel `?j=<opaque>`; no cost/model chrome; referrer meta no-referrer.
+- **Note:** live gateway accepts POST for `get-lead-status` (GET 405); status client uses POST. Journey highlight remains GET.

@@ -159,13 +159,17 @@ export default function LeadStatusPage() {
     const tick = async () => {
       try {
         const wantJourney = !issuedJourney;
-        const qs = new URLSearchParams({
-          responseId,
-        });
-        if (wantJourney) qs.set("issueJourney", "true");
         const res = await fetch(
-          `${bases.api}/_agent-native/actions/get-lead-status?${qs.toString()}`,
-          { cache: "no-store" },
+          `${bases.api}/_agent-native/actions/get-lead-status`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify({
+              responseId,
+              ...(wantJourney ? { issueJourney: "true" } : {}),
+            }),
+          },
         );
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = (await res.json()) as Payload;
@@ -176,8 +180,7 @@ export default function LeadStatusPage() {
             issuedJourney = true;
             setJourneyToken((prev) => prev ?? data.lead.journeyToken ?? null);
           } else if (data.found) {
-            // Lead exists; do not keep re-requesting once found without a token
-            // (table lag) more than once — retry next tick only if still needed.
+            // Lead exists; stop re-requesting journey mint after first found poll.
             issuedJourney = wantJourney;
           }
         }
