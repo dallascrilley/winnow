@@ -230,3 +230,17 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   matches the four commands and notes `inbound-demo` is the stable name key.
 - [cmd] Fake ghost + good creds → GHOST warning; same state + invalid AWS
   keys → no GHOST line, purge refused; final state empty.
+
+## 2026-07-20 — Session marker + check-expiry guard
+
+- [hand] `infra/interview.sh up` writes gitignored
+  `infra/.interview-session.json` (UTC start, base URL, git rev, smoke);
+  `down` clears it. `status` reports age vs warn/critical thresholds
+  (`INTERVIEW_EXPIRE_WARN_H=3`, `INTERVIEW_EXPIRE_CRITICAL_H=6`).
+- [hand] `check-expiry` subcommand for cron/launchd: exit 0 fresh / no
+  marker, 1 warn, 2 critical or AWS probe failure. Clears stale markers when
+  the ALB is already gone. **No auto-destroy.**
+- [perf] Empty `status` parses `terraform.tfstate` via python instead of
+  booting `terraform state list` / `terraform output` (~5s each).
+- [docs] Runbook "five commands" + session marker section replaces "Future
+  guard"; README command list updated.

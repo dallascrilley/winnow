@@ -4,10 +4,11 @@
 # session = one `up`, then `down` before you walk away. See
 # docs/interview-mode.md for the full runbook, prerequisites, and timings.
 #
-#   infra/interview.sh up           # apply, push images, roll out, seed, smoke
-#   infra/interview.sh status       # read-only: outputs + ECS state + healthz
-#   infra/interview.sh down         # destroy (asks for typed confirmation)
-#   infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty
+#   infra/interview.sh up            # apply, push images, roll out, seed, smoke
+#   infra/interview.sh status        # read-only: outputs + ECS state + healthz
+#   infra/interview.sh down          # destroy (asks for typed confirmation)
+#   infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
+#   infra/interview.sh check-expiry  # exit non-zero if session older than warn/critical hours
 #
 # Runtime AWS identifiers (ALB DNS name, subnets, security group, image
 # repos) are read from `terraform output` or live `aws` queries — those
@@ -21,6 +22,10 @@ REGION="${AWS_REGION:-us-east-1}"
 HEALTHZ_TIMEOUT_S="${HEALTHZ_TIMEOUT_S:-900}"   # 15 min — cold boot is migrations + ollama model load
 SEED_TIMEOUT_S="${SEED_TIMEOUT_S:-600}"          # 10 min
 POLL_INTERVAL_S=15
+SESSION_MARKER="$SCRIPT_DIR/.interview-session.json"
+# Soft/hard age thresholds for check-expiry (hours). Override via env.
+EXPIRE_WARN_H="${INTERVIEW_EXPIRE_WARN_H:-3}"
+EXPIRE_CRITICAL_H="${INTERVIEW_EXPIRE_CRITICAL_H:-6}"
 
 say()  { printf '%s\n' "$*"; }
 info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
@@ -30,20 +35,25 @@ die()  { err "$*"; exit 1; }
 
 usage() {
   cat <<'EOF'
-Usage: infra/interview.sh <up|down|status|purge-ghost> [--yes]
+Usage: infra/interview.sh <up|down|status|purge-ghost|check-expiry> [--yes]
 
-  up           Bring the full stack up: terraform apply, build+push images,
-               force a fresh ECS deployment, wait for /healthz, run the prod
-               seed task, run the smoke test, print a dated receipt block.
-  down         Tear the full stack down: terraform destroy (typed confirmation
-               required unless --yes), print a teardown receipt.
-  status       Read-only: terraform outputs, ECS service state, one healthz probe.
-               Detects ghost local state (resources listed, AWS empty).
-  purge-ghost  Empty local terraform.tfstate when AWS is already empty
-               (typed confirmation; --yes skips it).
+  up            Bring the full stack up: terraform apply, build+push images,
+                force a fresh ECS deployment, wait for /healthz, run the prod
+                seed task, run the smoke test, print a dated receipt block.
+  down          Tear the full stack down: terraform destroy (typed confirmation
+                required unless --yes), print a teardown receipt.
+  status        Read-only: terraform outputs, ECS service state, one healthz probe.
+                Detects ghost local state; reports session age from the local marker.
+  purge-ghost   Empty local terraform.tfstate when AWS is already empty
+                (typed confirmation; --yes skips it).
+  check-expiry  Exit 0 if no session or still fresh; 1 if past warn hours;
+                2 if past critical hours or AWS probes failed while a marker
+                exists. Intended for cron/launchd (no auto-destroy).
 
   --yes   Skip interactive confirmation (for scripted/CI use). Never
           bypasses the cost banner on `up`. Auto-purges ghost state on `up`.
+
+Env: INTERVIEW_EXPIRE_WARN_H (default 3), INTERVIEW_EXPIRE_CRITICAL_H (default 6).
 EOF
 }
 
@@ -102,8 +112,109 @@ require_tfvars() {
 }
 
 # Managed (non-data) addresses still present in local terraform state.
+# Prefer parsing the state JSON directly — `terraform state list` takes ~5s
+# even on an empty file because it boots providers.
 tf_managed_count() {
+  local state_path="$SCRIPT_DIR/terraform.tfstate" n
+  if [ ! -f "$state_path" ]; then
+    printf '0'
+    return 0
+  fi
+  if n=$(python3 -c 'import json,sys
+from pathlib import Path
+s=json.loads(Path(sys.argv[1]).read_text() or "{}")
+n=0
+for r in s.get("resources") or []:
+    if r.get("mode")=="data":
+        continue
+    n += len(r.get("instances") or []) or 1
+print(n)' "$state_path" 2>/dev/null); then
+    printf '%s' "$n"
+    return 0
+  fi
+  # Fallback if JSON is corrupt — slow but correct.
   tf state list 2>/dev/null | grep -cv '^data\.' || true
+}
+
+write_session_marker() {
+  # write_session_marker <base_url> <smoke_status>
+  local base_url="$1" smoke_status="$2" git_rev started
+  git_rev=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  python3 - "$SESSION_MARKER" "$started" "$base_url" "$git_rev" "$smoke_status" \
+    "$EXPIRE_WARN_H" "$EXPIRE_CRITICAL_H" <<'PY'
+import json, sys
+from pathlib import Path
+path, started, base_url, git_rev, smoke, warn_h, crit_h = sys.argv[1:8]
+Path(path).write_text(json.dumps({
+    "started_at": started,
+    "base_url": base_url,
+    "git_rev": git_rev,
+    "smoke_status": smoke,
+    "expire_warn_h": float(warn_h),
+    "expire_critical_h": float(crit_h),
+}, indent=2) + "\n")
+PY
+  info "session marker written: $SESSION_MARKER (started $started)"
+}
+
+clear_session_marker() {
+  if [ -f "$SESSION_MARKER" ]; then
+    rm -f "$SESSION_MARKER"
+    info "session marker cleared"
+  fi
+}
+
+# Prints: started_at\tage_hours\tbase_url  (or nothing if missing/unreadable)
+read_session_marker() {
+  [ -f "$SESSION_MARKER" ] || return 1
+  python3 - "$SESSION_MARKER" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+from pathlib import Path
+raw = Path(sys.argv[1]).read_text()
+try:
+    d = json.loads(raw)
+except Exception:
+    sys.exit(1)
+started = d.get("started_at") or ""
+base = d.get("base_url") or ""
+if not started:
+    sys.exit(1)
+# Accept Z suffix
+ts = started.replace("Z", "+00:00")
+try:
+    t0 = datetime.fromisoformat(ts)
+except Exception:
+    sys.exit(1)
+if t0.tzinfo is None:
+    t0 = t0.replace(tzinfo=timezone.utc)
+age_h = (datetime.now(timezone.utc) - t0).total_seconds() / 3600.0
+print(f"{started}\t{age_h:.3f}\t{base}")
+PY
+}
+
+report_session_age() {
+  # Soft report for status — never fails the command.
+  local line started age base
+  line=$(read_session_marker 2>/dev/null) || {
+    say "  session marker: (none — stack not tracked as an interview session)"
+    return 0
+  }
+  IFS=$'\t' read -r started age base <<<"$line"
+  say "  session started: $started  age: ${age}h  base: ${base:-?}"
+  say "  expiry thresholds: warn ${EXPIRE_WARN_H}h / critical ${EXPIRE_CRITICAL_H}h"
+  # bash can't do float compare portably — use python
+  python3 - "$age" "$EXPIRE_WARN_H" "$EXPIRE_CRITICAL_H" <<'PY' || true
+import sys
+age, warn_h, crit_h = map(float, sys.argv[1:4])
+if age >= crit_h:
+    print(f"  !! CRITICAL: session age {age:.2f}h >= {crit_h:g}h — run infra/interview.sh down", file=sys.stderr)
+elif age >= warn_h:
+    print(f"  !! WARN: session age {age:.2f}h >= {warn_h:g}h — tear down soon", file=sys.stderr)
+else:
+    print(f"  session age ok (< {warn_h:g}h warn)")
+PY
 }
 
 # True when local state still lists managed resources but the live AWS side
@@ -440,6 +551,7 @@ cmd_up() {
   fi
 
   print_up_receipt "$base_url" "$smoke_status"
+  write_session_marker "$base_url" "$smoke_status"
 
   warn "stack is UP and billing. Run 'infra/interview.sh down' when you are done."
 }
@@ -627,6 +739,8 @@ cmd_down() {
 --------------------------------------------------------------------------------
 
 EOF
+
+  clear_session_marker
 }
 
 # ---------------------------------------------------------------------------
@@ -636,17 +750,29 @@ EOF
 cmd_status() {
   require_cmd terraform
   require_cmd aws
+  require_cmd python3
 
   local managed
   managed=$(tf_managed_count)
   managed=${managed//[[:space:]]/}
   managed=${managed:-0}
 
-  if [ "$managed" = "0" ] && ! tf output alb_dns_name >/dev/null 2>&1; then
-    say "no usable terraform outputs available — stack is likely down (or never applied)."
-    return 0
+  # Fast path: empty state file → no terraform CLI boot (~5s saved).
+  if [ "$managed" = "0" ]; then
+    local has_out=0
+    # Only ask terraform for outputs if a state file exists with outputs key.
+    if [ -f "$SCRIPT_DIR/terraform.tfstate" ] \
+      && python3 -c 'import json,sys;from pathlib import Path;s=json.loads(Path(sys.argv[1]).read_text() or "{}");sys.exit(0 if s.get("outputs") else 1)' \
+           "$SCRIPT_DIR/terraform.tfstate" 2>/dev/null; then
+      has_out=1
+    fi
+    if [ "$has_out" = "0" ]; then
+      say "no usable terraform outputs available — stack is likely down (or never applied)."
+      info "session"
+      report_session_age
+      return 0
+    fi
   fi
-
   local ghost_rc=0
   is_ghost_state || ghost_rc=$?
   if [ "$ghost_rc" -eq 0 ]; then
@@ -698,16 +824,75 @@ cmd_status() {
   info "healthz probe"
   if [ -z "$base_url" ]; then
     warn "no base URL available — skipping healthz probe"
-    return 0
-  fi
-  local body ok
-  body=$(curl -s -m 10 "$base_url/healthz" 2>/dev/null || true)
-  ok=$(printf '%s' "$body" | python3 -c 'import sys,json
+  else
+    local body ok
+    body=$(curl -s -m 10 "$base_url/healthz" 2>/dev/null || true)
+    ok=$(printf '%s' "$body" | python3 -c 'import sys,json
 try:
     print(str(json.load(sys.stdin).get("ok")).lower())
 except Exception:
     print("unreachable")' 2>/dev/null || echo "unreachable")
-  say "  $base_url/healthz -> ok=$ok"
+    say "  $base_url/healthz -> ok=$ok"
+  fi
+
+  info "session"
+  report_session_age
+}
+
+# ---------------------------------------------------------------------------
+# check-expiry — cron-friendly forgotten-down guard (no auto-destroy)
+# ---------------------------------------------------------------------------
+
+cmd_check_expiry() {
+  require_cmd python3
+  require_cmd aws
+
+  if [ ! -f "$SESSION_MARKER" ]; then
+    say "no interview session marker — nothing to expire."
+    return 0
+  fi
+
+  local line started age base
+  line=$(read_session_marker) || die "session marker unreadable: $SESSION_MARKER"
+  IFS=$'\t' read -r started age base <<<"$line"
+  say "session started: $started  age: ${age}h  base: ${base:-?}"
+  say "thresholds: warn ${EXPIRE_WARN_H}h / critical ${EXPIRE_CRITICAL_H}h"
+
+  # If AWS is already empty, clear a stale marker instead of paging forever.
+  local alb_err alb_arn alb_rc
+  alb_err=$(mktemp "${TMPDIR:-/tmp}/inbound-alb.XXXXXX")
+  alb_arn=$(aws elbv2 describe-load-balancers --region "$REGION" --names inbound-demo \
+    --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>"$alb_err") && alb_rc=0 || alb_rc=$?
+  case "$alb_arn" in
+    arn:*)
+      rm -f "$alb_err"
+      ;;
+    *)
+      if [ "$alb_rc" -ne 0 ] && ! grep -qiE 'LoadBalancerNotFound|Cannot find load balancer' "$alb_err" 2>/dev/null; then
+        warn "AWS ALB probe failed — cannot clear marker safely:"
+        sed 's/^/  /' "$alb_err" >&2 || true
+        rm -f "$alb_err"
+        return 2
+      fi
+      rm -f "$alb_err"
+      warn "marker present but inbound-demo ALB is gone — clearing stale session marker."
+      clear_session_marker
+      return 0
+      ;;
+  esac
+
+  python3 - "$age" "$EXPIRE_WARN_H" "$EXPIRE_CRITICAL_H" <<'PY'
+import sys
+age, warn_h, crit_h = map(float, sys.argv[1:4])
+if age >= crit_h:
+    print(f"CRITICAL: session age {age:.2f}h >= {crit_h:g}h — run: infra/interview.sh down", file=sys.stderr)
+    sys.exit(2)
+if age >= warn_h:
+    print(f"WARN: session age {age:.2f}h >= {warn_h:g}h — tear down soon: infra/interview.sh down", file=sys.stderr)
+    sys.exit(1)
+print(f"ok: session age {age:.2f}h < warn {warn_h:g}h")
+sys.exit(0)
+PY
 }
 
 # ---------------------------------------------------------------------------
@@ -730,6 +915,7 @@ case "$CMD" in
   down) cmd_down ;;
   status) cmd_status ;;
   purge-ghost) cmd_purge_ghost ;;
+  check-expiry) cmd_check_expiry ;;
   -h|--help|"") usage; [ -n "$CMD" ] || exit 1 ;;
   *) die "unknown subcommand: $CMD" ;;
 esac

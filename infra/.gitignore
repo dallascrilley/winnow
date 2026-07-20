@@ -5,3 +5,5 @@ terraform.tfstate*
 tfplan*
 .terraform.lock.hcl
 .interview-dns-backup.json
+.interview-session.json
+.interview-session.json.*

@@ -36,17 +36,20 @@ all of those change on every destroy + re-apply cycle.
   (dallasdotjs)") at run time and fully automates DNS + HTTPS (see below).
   Without it, everything still works over the raw ALB URL with manual DNS.
 
-## The four commands
+## The five commands
 
 ```bash
-infra/interview.sh up           # apply → build/push images → roll out → seed → smoke → receipt
-infra/interview.sh status       # read-only: terraform outputs + ECS state + one healthz probe
-infra/interview.sh down         # terraform destroy (typed confirmation required) → teardown receipt
-infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty (ghost state)
+infra/interview.sh up            # apply → build/push images → roll out → seed → smoke → receipt
+infra/interview.sh status        # read-only: terraform outputs + ECS state + healthz + session age
+infra/interview.sh down          # terraform destroy (typed confirmation required) → teardown receipt
+infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty (ghost state)
+infra/interview.sh check-expiry  # cron-friendly: exit non-zero if session is too old
 ```
 
-Both `up` and `down` accept `--yes` to skip interactive confirmation (for
-scripted use); `up`'s cost warning banner always prints regardless.
+`up`, `down`, and `purge-ghost` accept `--yes` to skip interactive confirmation
+(for scripted use); `up`'s cost warning banner always prints regardless.
+Expiry thresholds default to 3h warn / 6h critical and override via
+`INTERVIEW_EXPIRE_WARN_H` / `INTERVIEW_EXPIRE_CRITICAL_H`.
 
 ### `up`
 
@@ -70,21 +73,23 @@ scripted use); `up`'s cost warning banner always prints regardless.
 7. Runs `scripts/smoke.sh` against the ALB URL — plants a lead, polls for a
    terminal status, checks the funnel moved.
 8. Prints a dated receipt block (git rev, image digests, ALB URL, smoke
-   result) formatted to paste directly into `docs/receipts.md`.
+   result) formatted to paste directly into `docs/receipts.md`, and writes
+   `infra/.interview-session.json` for `check-expiry` / `status` age tracking.
 
 ### `down`
 
 Requires typing `destroy inbound-demo` to confirm (or `--yes` for scripted
-use), then runs `terraform destroy` and prints a teardown receipt block.
-**Run this the moment the session ends.** There is no automatic expiry —
-see "Future guard" below.
+use), then runs `terraform destroy`, clears the local session marker, and
+prints a teardown receipt block. **Run this the moment the session ends.**
+There is no automatic destroy — use `check-expiry` (below) to page yourself.
 
 ### `status`
 
 Read-only. Prints terraform outputs, the ECS service's desired/running/
-pending counts and deployment rollout state, and a single healthz probe.
-Safe to run any time, including while the stack is down (prints "no usable
-terraform outputs available" instead of erroring).
+pending counts and deployment rollout state, a single healthz probe, and the
+local session marker age (if present). Safe to run any time, including while
+the stack is down (prints "no usable terraform outputs available" instead of
+erroring; empty state avoids booting the Terraform CLI).
 
 Also detects **ghost state**: local `terraform.tfstate` still lists managed
 resources, but AWS has no live `inbound-demo` ALB/ECS service. In that case
@@ -98,6 +103,24 @@ Empties local `infra/terraform.tfstate` (preserving lineage, bumping serial)
 inbound-demo ALB/ECS service. Typed confirmation required (or `--yes`).
 `up` offers the same purge interactively, and auto-purges under `--yes`.
 `down` auto-purges leftovers if destroy finishes but ghost state remains.
+
+### `check-expiry`
+
+Cron/launchd entrypoint for a forgotten `down`. Reads
+`infra/.interview-session.json` (written by `up`, cleared by `down`):
+
+| Exit | Meaning |
+|---|---|
+| 0 | No marker, age under warn hours, or stale marker cleared because ALB is gone |
+| 1 | Age ≥ `INTERVIEW_EXPIRE_WARN_H` (default 3) |
+| 2 | Age ≥ `INTERVIEW_EXPIRE_CRITICAL_H` (default 6), or AWS probe failed |
+
+Does **not** destroy anything. Example:
+
+```bash
+*/30 * * * * cd /path/to/inbound && infra/interview.sh check-expiry \
+  || ntfy publish agent_alerts "inbound interview stack still up (rc=$?)"
+```
 
 ## Expected timings
 
@@ -158,10 +181,10 @@ destroy` should remove all of them (`force_delete` is set on both ECR repos,
 `skip_final_snapshot`/`deletion_protection=false` on RDS), but a manual
 sanity check after a costly demo is cheap insurance.
 
-## Future guard (not built here)
+## Session marker
 
-The scripts do not enforce any automatic expiry. A natural follow-up would
-be a scheduled check (e.g. a cron/Lambda) that pages if the stack has been
-up longer than a few hours, or a hard auto-destroy after N hours, so a
-forgotten `down` doesn't quietly rack up cost. Out of scope for this
-runbook — flagged for a future session.
+A successful `up` writes gitignored `infra/.interview-session.json` with the
+UTC start time, base URL, git rev, and smoke result. `down` clears it.
+`status` prints age against the warn/critical thresholds; `check-expiry` is
+the non-interactive form for schedulers. There is still no automatic
+destroy — that remains an explicit operator action.

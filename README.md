@@ -94,12 +94,11 @@ Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
 DNS.
 
 ```bash
-infra/interview.sh up           # apply (~15 min) → build+push images → roll out →
-                                # wait for healthz → seed (one-off ECS run-task) →
-                                # smoke test → dated receipt block
-infra/interview.sh status       # outputs + ECS + healthz; detects ghost local state
-infra/interview.sh down         # destroy everything again
-infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty
+infra/interview.sh up            # apply (~15 min) → build+push → healthz → seed → smoke → receipt
+infra/interview.sh status        # outputs + ECS + healthz + session age; detects ghost state
+infra/interview.sh down          # destroy everything again
+infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
+infra/interview.sh check-expiry  # cron: non-zero if session older than warn/critical hours
 ```
 
 Full runbook (DNS automation via 1Password, timings, receipts):
