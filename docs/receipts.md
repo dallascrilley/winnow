@@ -255,3 +255,17 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
   to current HOME/repo, loaded under `gui/$UID`.
 - [cmd] install loaded agent; wrapper rc=0 with no marker; marker+ALB-gone
   clears marker rc=0; kickstart log line confirms quiet run. No auto-destroy.
+
+## 2026-07-20 — Residual inbound-lite AWS inventory
+
+- [hand] `infra/RESIDUAL-AWS.md` — live inventory of leftover **inbound-lite**
+  experiment (not interview/`inbound-demo`): stopped `t4g.medium`
+  `i-0240b508562452100`, EIP `32.197.109.250` (billable while associated),
+  Lambda `inbound-lite-wake` + HTTP API `vbvq3trcef`, ECR/SSM/S3/DynamoDB/IAM,
+  remote tfstate
+  `s3://inbound-lite-tfstate-221909913867-us-east-1/lite/terraform.tfstate`
+  serial 4. Teardown notes prefer lite-root `terraform destroy`; manual order
+  documented. **No destroy run this session.**
+- [hand] `infra/inventory-residual-aws.sh` — read-only re-check script.
+- [docs] README cost study + `docs/interview-mode.md` point at residual doc so
+  operators do not assume `interview.sh down` cleared lite leftovers.

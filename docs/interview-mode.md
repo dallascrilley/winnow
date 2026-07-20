@@ -203,3 +203,12 @@ UTC start time, base URL, git rev, and smoke result. `down` clears it.
 `status` prints age against the warn/critical thresholds; `check-expiry` is
 the non-interactive form for schedulers. There is still no automatic
 destroy — that remains an explicit operator action.
+
+## Residual AWS outside interview mode
+
+Interview mode only owns the **`inbound-demo`** stack. A leftover
+**`inbound-lite`** experiment (stopped `t4g.medium`, billable Elastic IP,
+wake Lambda/API, ECR, SSM, S3 state) may still exist in account
+`221909913867`. It is out of scope for `up` / `down` / `check-expiry`.
+See [`infra/RESIDUAL-AWS.md`](../infra/RESIDUAL-AWS.md) for the live inventory
+and teardown order. Do not assume `down` cleared it.

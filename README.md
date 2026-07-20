@@ -134,6 +134,11 @@ Local dev (`pnpm dev`, offline Ollama scoring) stays live at all times for
 anyone who wants to run it themselves — `terraform destroy` retires the
 managed stack, not the project.
 
+A separate 2026-07-18 **inbound-lite** experiment (stopped EC2 + EIP + wake
+Lambda, etc.) is still in the AWS account and is **not** managed by
+`infra/interview.sh`. Inventory + teardown notes:
+[`infra/RESIDUAL-AWS.md`](infra/RESIDUAL-AWS.md).
+
 ## Environment
 
 | Variable | Where | Purpose |
