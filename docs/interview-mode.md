@@ -36,12 +36,13 @@ all of those change on every destroy + re-apply cycle.
   (dallasdotjs)") at run time and fully automates DNS + HTTPS (see below).
   Without it, everything still works over the raw ALB URL with manual DNS.
 
-## The three commands
+## The four commands
 
 ```bash
-infra/interview.sh up       # apply → build/push images → roll out → seed → smoke → receipt
-infra/interview.sh status   # read-only: terraform outputs + ECS state + one healthz probe
-infra/interview.sh down     # terraform destroy (typed confirmation required) → teardown receipt
+infra/interview.sh up           # apply → build/push images → roll out → seed → smoke → receipt
+infra/interview.sh status       # read-only: terraform outputs + ECS state + one healthz probe
+infra/interview.sh down         # terraform destroy (typed confirmation required) → teardown receipt
+infra/interview.sh purge-ghost  # empty local tfstate when AWS is already empty (ghost state)
 ```
 
 Both `up` and `down` accept `--yes` to skip interactive confirmation (for
@@ -82,8 +83,21 @@ see "Future guard" below.
 
 Read-only. Prints terraform outputs, the ECS service's desired/running/
 pending counts and deployment rollout state, and a single healthz probe.
-Safe to run any time, including while the stack is down (prints "no
+Safe to run any time, including while the stack is down (prints "no usable
 terraform outputs available" instead of erroring).
+
+Also detects **ghost state**: local `terraform.tfstate` still lists managed
+resources, but AWS has no live `inbound-demo` ALB/ECS service. In that case
+it prints a warning and points at `purge-ghost` rather than a dead ALB URL.
+See `docs/solutions/tooling/terraform-ghost-state-after-destroy.md`.
+
+### `purge-ghost`
+
+Empties local `infra/terraform.tfstate` (preserving lineage, bumping serial)
+**only when** managed addresses remain and AWS probes show no live
+inbound-demo ALB/ECS service. Typed confirmation required (or `--yes`).
+`up` offers the same purge interactively, and auto-purges under `--yes`.
+`down` auto-purges leftovers if destroy finishes but ghost state remains.
 
 ## Expected timings
 

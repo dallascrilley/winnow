@@ -29,17 +29,20 @@ die()  { err "$*"; exit 1; }
 
 usage() {
   cat <<'EOF'
-Usage: infra/interview.sh <up|down|status> [--yes]
+Usage: infra/interview.sh <up|down|status|purge-ghost> [--yes]
 
-  up      Bring the full stack up: terraform apply, build+push images,
-          force a fresh ECS deployment, wait for /healthz, run the prod
-          seed task, run the smoke test, print a dated receipt block.
-  down    Tear the full stack down: terraform destroy (typed confirmation
-          required unless --yes), print a teardown receipt.
-  status  Read-only: terraform outputs, ECS service state, one healthz probe.
+  up           Bring the full stack up: terraform apply, build+push images,
+               force a fresh ECS deployment, wait for /healthz, run the prod
+               seed task, run the smoke test, print a dated receipt block.
+  down         Tear the full stack down: terraform destroy (typed confirmation
+               required unless --yes), print a teardown receipt.
+  status       Read-only: terraform outputs, ECS service state, one healthz probe.
+               Detects ghost local state (resources listed, AWS empty).
+  purge-ghost  Empty local terraform.tfstate when AWS is already empty
+               (typed confirmation; --yes skips it).
 
   --yes   Skip interactive confirmation (for scripted/CI use). Never
-          bypasses the cost banner on `up`.
+          bypasses the cost banner on `up`. Auto-purges ghost state on `up`.
 EOF
 }
 
@@ -95,6 +98,100 @@ tf_out_json() {
 
 require_tfvars() {
   [ -f "$SCRIPT_DIR/terraform.tfvars" ] || die "$SCRIPT_DIR/terraform.tfvars is missing (needs db_password at minimum) — see docs/interview-mode.md prerequisites."
+}
+
+# Managed (non-data) addresses still present in local terraform state.
+tf_managed_count() {
+  tf state list 2>/dev/null | grep -cv '^data\.' || true
+}
+
+# True when local state still lists managed resources but the live AWS side
+# has no inbound-demo ALB and no active ECS service. That is the "ghost state"
+# posture that breaks the next apply after a partial/manual teardown.
+# See docs/solutions/tooling/terraform-ghost-state-after-destroy.md.
+is_ghost_state() {
+  local n cluster service alb_arn svc_status
+  n=$(tf_managed_count)
+  n=${n//[[:space:]]/}
+  [ -n "$n" ] && [ "$n" -gt 0 ] 2>/dev/null || return 1
+
+  # Fixed names from infra/*.tf (locals / resource names). Do not parse ALB DNS.
+  cluster=$(tf_out_or ecs_cluster "inbound-demo")
+  service=$(tf_out_or ecs_service "inbound-demo")
+
+  alb_arn=$(aws elbv2 describe-load-balancers --region "$REGION" --names inbound-demo \
+    --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo none)
+  case "$alb_arn" in
+    arn:*) return 1 ;;
+  esac
+
+  svc_status=$(aws ecs describe-services --region "$REGION" \
+    --cluster "$cluster" --services "$service" \
+    --query 'services[0].status' --output text 2>/dev/null || echo none)
+  case "$svc_status" in
+    ACTIVE|DRAINING) return 1 ;;
+  esac
+
+  return 0
+}
+
+warn_ghost_state() {
+  local n
+  n=$(tf_managed_count)
+  n=${n//[[:space:]]/}
+  warn "GHOST TERRAFORM STATE: local state lists ${n:-?} managed resources, but AWS has no live inbound-demo ALB/ECS service."
+  warn "Purge before the next up:  infra/interview.sh purge-ghost"
+  warn "Details: docs/solutions/tooling/terraform-ghost-state-after-destroy.md"
+}
+
+purge_ghost_state() {
+  # Rewrite local state to empty while preserving lineage. Only call after
+  # is_ghost_state returned true (or the operator explicitly chose purge-ghost).
+  local state_path bak
+  state_path="$SCRIPT_DIR/terraform.tfstate"
+  [ -f "$state_path" ] || die "no terraform.tfstate at $state_path"
+  bak="$SCRIPT_DIR/terraform.tfstate.ghost-purged.$(date -u +%Y%m%dT%H%M%SZ)"
+  cp -p "$state_path" "$bak"
+  python3 - "$state_path" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+s = json.loads(p.read_text())
+empty = {
+    "version": s.get("version", 4),
+    "terraform_version": s.get("terraform_version", "1.15.6"),
+    "serial": int(s.get("serial") or 0) + 1,
+    "lineage": s.get("lineage"),
+    "outputs": {},
+    "resources": [],
+    "check_results": None,
+}
+if not empty["lineage"]:
+    raise SystemExit("refusing to purge: state has no lineage")
+p.write_text(json.dumps(empty, indent=2) + "\n")
+print(f"purged -> serial {empty['serial']} resources 0")
+PY
+  info "ghost state purged (backup: $bak)"
+}
+
+cmd_purge_ghost() {
+  require_cmd terraform
+  require_cmd aws
+  require_cmd python3
+  if ! is_ghost_state; then
+    local n
+    n=$(tf_managed_count)
+    n=${n//[[:space:]]/}
+    if [ -z "$n" ] || [ "$n" = "0" ]; then
+      say "state is already empty — nothing to purge."
+      return 0
+    fi
+    die "state lists managed resources AND AWS still has a live inbound-demo ALB or ECS service — refusing to purge. Run 'status' and tear down with 'down' first."
+  fi
+  warn_ghost_state
+  confirm "Purge local ghost terraform state (AWS already empty)?" "purge ghost state"
+  purge_ghost_state
+  say "ok — local state empty. Next: infra/interview.sh up"
 }
 
 # ---------------------------------------------------------------------------
@@ -228,6 +325,17 @@ cmd_up() {
   info "checking AWS credentials"
   aws sts get-caller-identity --region "$REGION" >/dev/null \
     || die "AWS credentials not available (aws sts get-caller-identity failed). Configure them and retry."
+
+  if is_ghost_state; then
+    warn_ghost_state
+    if [ "$ASSUME_YES" = "1" ]; then
+      info "auto-purging ghost state (--yes)"
+      purge_ghost_state
+    else
+      read -r -p "Purge ghost state now so apply starts clean? [y/N] " reply
+      case "$reply" in y|Y|yes|YES) purge_ghost_state ;; *) die "aborted — purge with 'infra/interview.sh purge-ghost' then retry up." ;; esac
+    fi
+  fi
 
   dns_setup
 
@@ -449,13 +557,28 @@ cmd_down() {
 
   dns_restore_host
 
+  local remaining
+  remaining=$(tf_managed_count)
+  remaining=${remaining//[[:space:]]/}
+  if [ -n "$remaining" ] && [ "$remaining" -gt 0 ] 2>/dev/null; then
+    warn "terraform destroy finished but local state still lists $remaining managed resources."
+    if is_ghost_state; then
+      warn_ghost_state
+      warn "auto-purging ghost leftovers so the next up starts clean."
+      purge_ghost_state
+      remaining=0
+    else
+      warn "AWS still reports a live inbound-demo ALB or ECS service — inspect before the next up."
+    fi
+  fi
+
   cat <<EOF
 
 --------------------------------------------------------------------------------
 ## $(date -u +%Y-%m-%d) — Interview mode: down
 
 - [cmd] \`infra/interview.sh down\` — git rev \`$git_rev\`
-- [state] terraform destroy completed — no billable inbound-demo resources should remain
+- [state] terraform destroy completed — managed resources remaining in local state: ${remaining:-0}
 - [note] verify in the AWS console (ECS, RDS, EC2 > Load Balancers, ECR) if in doubt
 --------------------------------------------------------------------------------
 
@@ -470,8 +593,20 @@ cmd_status() {
   require_cmd terraform
   require_cmd aws
 
-  if ! tf output alb_dns_name >/dev/null 2>&1; then
-    say "no terraform outputs available — stack is likely down (or never applied)."
+  local managed
+  managed=$(tf_managed_count)
+  managed=${managed//[[:space:]]/}
+  managed=${managed:-0}
+
+  if [ "$managed" = "0" ] && ! tf output alb_dns_name >/dev/null 2>&1; then
+    say "no usable terraform outputs available — stack is likely down (or never applied)."
+    return 0
+  fi
+
+  if is_ghost_state; then
+    warn_ghost_state
+    say "managed resources in local state: $managed"
+    say "fix: infra/interview.sh purge-ghost"
     return 0
   fi
 
@@ -499,6 +634,7 @@ cmd_status() {
   say "  public_prefix: $public_prefix"
   say "  ecs_cluster  : ${cluster:-<missing>}"
   say "  ecs_service  : ${service:-<missing>}"
+  say "  managed state: $managed resources"
 
   info "ECS service state"
   if [ -n "$cluster" ] && [ -n "$service" ]; then
@@ -543,6 +679,7 @@ case "$CMD" in
   up) cmd_up ;;
   down) cmd_down ;;
   status) cmd_status ;;
+  purge-ghost) cmd_purge_ghost ;;
   -h|--help|"") usage; [ -n "$CMD" ] || exit 1 ;;
-  *) die "unknown subcommand: $CMD"; usage; exit 1 ;;
+  *) die "unknown subcommand: $CMD" ;;
 esac

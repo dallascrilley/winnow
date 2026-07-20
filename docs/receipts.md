@@ -202,3 +202,17 @@ scaffolded then modified by hand (delta listed) · **[hand]** = written by hand
 - [cmd] `infra/interview.sh status` →
   `no usable terraform outputs available — stack is likely down (or never
   applied).` (exit 0). `bash -n` clean on both scripts.
+
+## 2026-07-20 — Ghost-state detection + purge-ghost
+
+- [hand] `infra/interview.sh` gained `is_ghost_state` / `purge_ghost_state` /
+  `purge-ghost` subcommand. Detection = managed addresses in local state AND
+  no live ALB named `inbound-demo` AND ECS service not ACTIVE/DRAINING.
+- [behavior] `status` warns + points at purge; `up` offers purge (auto under
+  `--yes`); `down` auto-purges leftovers when AWS is empty but state is not.
+- [docs] `docs/interview-mode.md` (four commands); solutions:
+  `docs/solutions/tooling/cdpath-pollutes-script-dir-bootstrap.md`,
+  `docs/solutions/tooling/terraform-ghost-state-after-destroy.md`.
+- [cmd] Injected a one-resource fake ghost state → `status` printed GHOST
+  warning (exit 0); `purge-ghost --yes` emptied state (serial bumped,
+  backup written); final `status` → stack-down message. `bash -n` PASS.
