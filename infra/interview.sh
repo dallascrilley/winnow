@@ -162,11 +162,19 @@ rs = json.load(sys.stdin)["result"]
 json.dump([{k: r[k] for k in ("type","name","content","ttl","proxied")} for r in rs], sys.stdout)' > "$DNS_BACKUP"
     info "backed up existing ${DNS_HOST} record(s) to $DNS_BACKUP"
   fi
-  printf '%s' "$records" | python3 -c 'import sys,json
+  local del_fail=0 rec_id
+  while IFS= read -r rec_id; do
+    [ -n "$rec_id" ] || continue
+    if ! cf_api DELETE "/zones/${CF_ZONE_ID}/dns_records/${rec_id}" \
+        | python3 -c 'import sys,json
+sys.exit(0 if json.load(sys.stdin).get("success") else 1)' 2>/dev/null; then
+      warn "Cloudflare DELETE failed for record ${rec_id}"
+      del_fail=1
+    fi
+  done < <(printf '%s' "$records" | python3 -c 'import sys,json
 for r in json.load(sys.stdin)["result"]:
-    print(r["id"])' | while IFS= read -r rec_id; do
-    [ -n "$rec_id" ] && cf_api DELETE "/zones/${CF_ZONE_ID}/dns_records/${rec_id}" >/dev/null
-  done
+    print(r["id"])')
+  [ "$del_fail" = "0" ] || die "could not clear pre-existing ${DNS_HOST} record(s) — terraform apply would collide. Backup kept at $DNS_BACKUP; nothing applied, no AWS spend."
   info "cleared pre-existing ${DNS_HOST} record(s) so terraform can own the name"
 }
 
