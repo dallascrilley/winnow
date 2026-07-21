@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  absoluteCrossAppHref,
   apiBaseFromPathname,
+  MAX_DELAYED_STATUS_POLLS,
   MAX_PENDING_STATUS_POLLS,
   statusLookupState,
   workspacePrefixFromApiBase,
@@ -22,20 +22,13 @@ describe("status path helpers", () => {
     expect(workspacePrefixFromApiBase("/qualify")).toBe("");
     expect(workspacePrefixFromApiBase("/inbound/qualify")).toBe("/inbound");
   });
-  it("uses an origin-absolute URL for a sibling app", () => {
-    expect(
-      absoluteCrossAppHref(
-        "http://127.0.0.1:8080",
-        "/analytics/funnel?j=opaque",
-      ),
-    ).toBe("http://127.0.0.1:8080/analytics/funnel?j=opaque");
-  });
 });
 
 describe("public status lookup limits", () => {
   it("shows a recoverable delay before rejecting a missing-status link", () => {
     expect(statusLookupState(MAX_PENDING_STATUS_POLLS - 1)).toBe("pending");
     expect(statusLookupState(MAX_PENDING_STATUS_POLLS)).toBe("delayed");
-    expect(statusLookupState(MAX_PENDING_STATUS_POLLS * 3)).toBe("invalid");
+    expect(statusLookupState(MAX_DELAYED_STATUS_POLLS - 1)).toBe("delayed");
+    expect(statusLookupState(MAX_DELAYED_STATUS_POLLS)).toBe("invalid");
   });
 });

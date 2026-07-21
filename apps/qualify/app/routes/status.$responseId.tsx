@@ -7,7 +7,6 @@ import {
 } from "../lib/eval-status";
 import type { PublicEvalStatus } from "../lib/eval-status";
 import {
-  absoluteCrossAppHref,
   apiBaseFromPathname,
   statusLookupState,
   workspacePrefixFromApiBase,
@@ -136,7 +135,6 @@ export default function LeadStatusPage() {
   const [evalInfo, setEvalInfo] = useState<PublicEvalStatus | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
-  const [pageOrigin, setPageOrigin] = useState("");
   const [statusLinkState, setStatusLinkState] =
     useState<ReturnType<typeof statusLookupState>>("pending");
   const missingStatusPolls = useRef(0);
@@ -152,7 +150,6 @@ export default function LeadStatusPage() {
   }, []);
 
   useEffect(() => {
-    setPageOrigin(window.location.origin);
     let cancelled = false;
     void loadPublicEvalStatus(fetch, bases.api).then((evalStatus) => {
       if (!cancelled) setEvalInfo(evalStatus);
@@ -239,9 +236,6 @@ export default function LeadStatusPage() {
   const funnelHref = journeyToken
     ? `${bases.workspace}/analytics/funnel?j=${encodeURIComponent(journeyToken)}`
     : `${bases.workspace}/analytics/funnel`;
-  const browserFunnelHref = pageOrigin
-    ? absoluteCrossAppHref(pageOrigin, funnelHref)
-    : funnelHref;
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl bg-zinc-950 px-6 py-12 text-zinc-100">
@@ -460,20 +454,8 @@ export default function LeadStatusPage() {
         Demo with synthetic data — a public rebuild of production lead-to-cash
         systems.{" "}
         <a
-          href={browserFunnelHref}
+          href={funnelHref}
           className="text-zinc-400 underline underline-offset-2"
-          onClick={(event) => {
-            if (
-              event.button !== 0 ||
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey
-            )
-              return;
-            event.preventDefault();
-            window.location.assign(funnelHref);
-          }}
         >
           Live funnel →{" "}
         </a>

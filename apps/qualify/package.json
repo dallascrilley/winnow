@@ -29,7 +29,6 @@
     "postgres": "^3.4.9",
     "react-router": "^8.1.0",
     "vite": "catalog:",
-    "yjs": "13.6.31",
     "zod": "^4.4.3"
   },
   "devDependencies": {

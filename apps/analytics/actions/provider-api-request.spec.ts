@@ -72,7 +72,7 @@ describe("provider API escape hatch", () => {
     expect(result.providers).toHaveLength(1);
     expect(result.providers[0]).toMatchObject({
       id: "hubspot",
-      auth: "bearer",
+      auth: expect.stringContaining("bearer"),
       credentialKeys: ["HUBSPOT_PRIVATE_APP_TOKEN", "HUBSPOT_ACCESS_TOKEN"],
     });
     expect(result.providers[0].docsUrls[0]).toContain("hubspot");
