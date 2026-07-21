@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "agent-native dev",
-    "build": "pnpm -r build",
+    "dev": "agent-native dev --no-prewarm",
     "typecheck": "pnpm -r typecheck",
     "repair:workspace-org": "tsx scripts/repair-workspace-org.ts",
     "skills:update": "agent-native skills update scaffold --project",
