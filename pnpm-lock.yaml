@@ -58,7 +58,13 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7)
+        version: 0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^3.0.0
+        version: 3.0.0(ai@7.0.34(zod@4.4.3))(zod@4.4.3)
+      ai:
+        specifier: ^7.0.34
+        version: 7.0.34(zod@4.4.3)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -80,7 +86,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(5598f41f0c8ca142efe0b48841eef6de)
+        version: 0.114.16(5f8e229becc81e0cfe0a879afc975239)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.8.2(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extension-list@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -360,10 +366,10 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7)
+        version: 0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d)
       '@agent-native/dispatch':
         specifier: latest
-        version: 0.15.7(@agent-native/core@0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+        version: 0.15.8(@agent-native/core@0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
@@ -460,7 +466,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(5598f41f0c8ca142efe0b48841eef6de)
+        version: 0.114.16(5f8e229becc81e0cfe0a879afc975239)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.8.2(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extension-list@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -695,7 +701,7 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(5598f41f0c8ca142efe0b48841eef6de)
+        version: 0.114.16(5f8e229becc81e0cfe0a879afc975239)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.8.2(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extension-list@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -918,10 +924,10 @@ importers:
     dependencies:
       '@agent-native/core':
         specifier: latest
-        version: 0.114.10(5598f41f0c8ca142efe0b48841eef6de)
+        version: 0.114.16(5f8e229becc81e0cfe0a879afc975239)
       '@agent-native/scheduling':
         specifier: 0.1.25
-        version: 0.1.25(@agent-native/core@0.114.10(5598f41f0c8ca142efe0b48841eef6de))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
+        version: 0.1.25(@agent-native/core@0.114.16(5f8e229becc81e0cfe0a879afc975239))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       '@agent-native/toolkit':
         specifier: latest
         version: 0.8.2(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extension-list@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -1152,8 +1158,8 @@ importers:
 
 packages:
 
-  '@agent-native/core@0.114.10':
-    resolution: {integrity: sha512-BJJYP6VrH1SAxI+ar7y4ydXT45notCaDHsF9F+a8Ah09deNMfqTKlR8+Yx/HVrs66kRBr1ub8pvrhI2uF0qv3A==}
+  '@agent-native/core@0.114.16':
+    resolution: {integrity: sha512-MGVf87ql7q2MOEJh1DTVjwqSn57ZRIbSLYmX/iEKQCq690nTJK5tD1RLxtaq3tDdrQomEeAaITZoYl9MBx34Yg==}
     engines: {node: '>=22.22.0'}
     hasBin: true
     peerDependencies:
@@ -1249,16 +1255,16 @@ packages:
       ws:
         optional: true
 
-  '@agent-native/dispatch@0.15.7':
-    resolution: {integrity: sha512-+d/ARVrM9asvWxnmYjIs/hLEZiz8hihKDdlkoEpp4x2ehstudEmbH6CMwcpImcrt9j77D1BLZuOLtoHHfilP7A==}
+  '@agent-native/dispatch@0.15.8':
+    resolution: {integrity: sha512-g19nFIVjxNt4Q+Z794UEfMqqVFLzqYGMoLik4hNW1cegwcVoZc3HzS9PbWFFtbcwQ3g+qk/e8vMkgzRUz3HwSw==}
     peerDependencies:
       '@agent-native/core': '>=0.8.0'
       react: '>=19.2.7'
       react-dom: '>=19.2.7'
       react-router: '>=8'
 
-  '@agent-native/recap-cli@0.4.7':
-    resolution: {integrity: sha512-6EkHzAi0HmkarLONc/L05hZC0y3zoLNVt6FdXFdYixXhASH6hhhVBc+Hhde0MdCVmxH4rJjrGL8gMzxH5J5hcg==}
+  '@agent-native/recap-cli@0.5.0':
+    resolution: {integrity: sha512-RaRR3jYNYbTZfVzps8vgyKCrMarTq42X3yYMdpCceF/UWJ917Z+YlqkYLStjqqI3l7jIcSWw7edARpEyHGgRyw==}
     engines: {node: '>=22.22.0'}
     hasBin: true
 
@@ -1289,6 +1295,22 @@ packages:
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
+
+  '@ai-sdk/gateway@4.0.26':
+    resolution: {integrity: sha512-b/nc3COKtk8IxzgcCi418IoZFky/Bw+Jg8+J0/SBBnu/mOXA4bkIKCu81coEtJAWuH2g5Fvvsa0ar7EpmzNWTw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@5.0.12':
+    resolution: {integrity: sha512-bbhlOgHeYwrIGheLkM6fhS8hVger8uFPmcOLg+kxc9EFh7y30XYorWhthlYAgpadO3SJhFZrIcEknN7qEqEVvA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@4.0.3':
+    resolution: {integrity: sha512-e0CpNWJUY7OxAFAnCZkw+ri9QOHWwTs1tXP42782KFGCU07qt8NiXCrCVowyCB5dP2r5/Uls+g2oPd8kOJn9dw==}
+    engines: {node: '>=22'}
 
   '@amplitude/analytics-browser@2.45.1':
     resolution: {integrity: sha512-3BwUABBw1qmYXw8au6bvV8i/mDgOwUaSNIVAcaVzY4znXghZw+5Oo5/wRLVbAn6RvshMMStQraU3w5/9Jfaahw==}
@@ -2613,6 +2635,13 @@ packages:
 
   '@nodable/entities@3.0.0':
     resolution: {integrity: sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw==}
+
+  '@openrouter/ai-sdk-provider@3.0.0':
+    resolution: {integrity: sha512-m9XTSWoODH2RM5OsZpaGiN7QRR8cdP5paBWq699Tu3JVmGPBKT8xF8XwV0ZBVVsjikD/JgWfak4VSsTR4wAVbg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      ai: ^7.0.0
+      zod: ^3.25.76 || ^4.1.8
 
   '@opentelemetry/api-logs@0.214.0':
     resolution: {integrity: sha512-40lSJeqYO8Uz2Yj7u94/SJWE/wONa7rmMKjI1ZcIjgf3MHNHv1OZUCrCETGuaRF62d5pQD1wKIW+L4lmSMTzZA==}
@@ -4689,6 +4718,10 @@ packages:
     peerDependencies:
       react: '>= 16.8.0'
 
+  '@vercel/oidc@3.2.0':
+    resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
+    engines: {node: '>= 20'}
+
   '@vitejs/plugin-react-swc@4.3.1':
     resolution: {integrity: sha512-PaeokKjAGraNN+s5SIApgsktnJprIyt3zgEIu7awnEdfn29QiB2crTcCzyi2XGpX9rUnTc0cKU07Wm0N0g7H2w==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -4727,6 +4760,9 @@ packages:
   '@webgpu/types@0.1.71':
     resolution: {integrity: sha512-mMy8/ODcKhab808co15eW+yN+HgXoQxRQHTiBV9Mrvl1r0ufnid7YOcI+gi4eUWSWl9ezD6TW2KXccrL8HCh2A==}
 
+  '@workflow/serde@4.1.0':
+    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
+
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
@@ -4761,6 +4797,12 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  ai@7.0.34:
+    resolution: {integrity: sha512-jDqclWYqPGFKcUG4CQiKcBiwi5XqVMqvYy6eJdujVpvE1SDoB6j7RtjrGYz3Bn5B1dzTj1StAlrOebY//WK9/Q==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -6028,6 +6070,9 @@ packages:
 
   json-schema-typed@8.0.2:
     resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
+
+  json-schema@0.4.0:
+    resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
 
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
@@ -7870,9 +7915,9 @@ packages:
 
 snapshots:
 
-  '@agent-native/core@0.114.10(5598f41f0c8ca142efe0b48841eef6de)':
+  '@agent-native/core@0.114.16(5f8e229becc81e0cfe0a879afc975239)':
     dependencies:
-      '@agent-native/recap-cli': 0.4.7
+      '@agent-native/recap-cli': 0.5.0
       '@agent-native/toolkit': 0.8.2(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extension-list@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.2.7))
       '@amplitude/analytics-browser': 2.45.1
       '@anthropic-ai/sdk': 0.90.0(zod@4.4.3)
@@ -7948,6 +7993,7 @@ snapshots:
       yjs: 13.6.31
       zod: 4.4.3
     optionalDependencies:
+      '@openrouter/ai-sdk-provider': 3.0.0(ai@7.0.34(zod@4.4.3))(zod@4.4.3)
       '@opentelemetry/api': 1.9.1
       '@tabler/icons-react': 3.44.0(react@19.2.7)
       '@tailwindcss/typography': 0.5.20(tailwindcss@4.3.3)
@@ -7957,6 +8003,7 @@ snapshots:
       '@xterm/addon-fit': 0.11.0
       '@xterm/addon-web-links': 0.12.0
       '@xterm/xterm': 6.0.0
+      ai: 7.0.34(zod@4.4.3)
       drizzle-kit: 0.31.10
       fast-xml-parser: 5.10.1
       jszip: 3.10.1
@@ -8070,9 +8117,9 @@ snapshots:
       - xml2js
       - zephyr-agent
 
-  '@agent-native/core@0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7)':
+  '@agent-native/core@0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d)':
     dependencies:
-      '@agent-native/recap-cli': 0.4.7
+      '@agent-native/recap-cli': 0.5.0
       '@agent-native/toolkit': 0.8.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
       '@amplitude/analytics-browser': 2.45.1
       '@anthropic-ai/sdk': 0.90.0(zod@4.4.3)
@@ -8148,6 +8195,7 @@ snapshots:
       yjs: 13.6.31
       zod: 4.4.3
     optionalDependencies:
+      '@openrouter/ai-sdk-provider': 3.0.0(ai@7.0.34(zod@4.4.3))(zod@4.4.3)
       '@opentelemetry/api': 1.9.1
       '@tabler/icons-react': 3.44.0(react@19.2.7)
       '@tailwindcss/typography': 0.5.20(tailwindcss@4.3.3)
@@ -8157,6 +8205,7 @@ snapshots:
       '@xterm/addon-fit': 0.11.0
       '@xterm/addon-web-links': 0.12.0
       '@xterm/xterm': 6.0.0
+      ai: 7.0.34(zod@4.4.3)
       drizzle-kit: 0.31.10
       fast-xml-parser: 5.10.1
       jszip: 3.10.1
@@ -8270,9 +8319,9 @@ snapshots:
       - xml2js
       - zephyr-agent
 
-  '@agent-native/dispatch@0.15.7(@agent-native/core@0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))':
+  '@agent-native/dispatch@0.15.8(@agent-native/core@0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(crossws@0.4.10(srvx@0.11.22))(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react-router@8.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))':
     dependencies:
-      '@agent-native/core': 0.114.10(fbe6bd8b701f8e845e120b0559c6c2f7)
+      '@agent-native/core': 0.114.16(fbc98e0b6e606a3191e4fa4ad2ce0f7d)
       '@agent-native/toolkit': 0.8.2(@floating-ui/dom@1.8.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
       '@libsql/client': 0.15.15
       '@radix-ui/react-accordion': 1.2.16(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -8342,14 +8391,14 @@ snapshots:
       - use-sync-external-store
       - utf-8-validate
 
-  '@agent-native/recap-cli@0.4.7':
+  '@agent-native/recap-cli@0.5.0':
     optionalDependencies:
       '@playwright/test': 1.61.1
       playwright: 1.61.1
 
-  '@agent-native/scheduling@0.1.25(@agent-native/core@0.114.10(5598f41f0c8ca142efe0b48841eef6de))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)':
+  '@agent-native/scheduling@0.1.25(@agent-native/core@0.114.16(5f8e229becc81e0cfe0a879afc975239))(@tabler/icons-react@3.44.0(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(drizzle-orm@0.45.2(@libsql/client@0.15.15)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(kysely@0.28.17)(postgres@3.4.9))(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)':
     dependencies:
-      '@agent-native/core': 0.114.10(5598f41f0c8ca142efe0b48841eef6de)
+      '@agent-native/core': 0.114.16(5f8e229becc81e0cfe0a879afc975239)
       '@agent-native/toolkit': 0.4.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       '@date-fns/tz': 1.5.0
       date-fns: 4.4.0
@@ -8590,6 +8639,25 @@ snapshots:
       - redis
       - redux
       - use-sync-external-store
+
+  '@ai-sdk/gateway@4.0.26(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.3
+      '@ai-sdk/provider-utils': 5.0.12(zod@4.4.3)
+      '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
+  '@ai-sdk/provider-utils@5.0.12(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.3
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.0
+      zod: 4.4.3
+
+  '@ai-sdk/provider@4.0.3':
+    dependencies:
+      json-schema: 0.4.0
 
   '@amplitude/analytics-browser@2.45.1':
     dependencies:
@@ -9810,6 +9878,11 @@ snapshots:
 
   '@nodable/entities@3.0.0':
     optional: true
+
+  '@openrouter/ai-sdk-provider@3.0.0(ai@7.0.34(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      ai: 7.0.34(zod@4.4.3)
+      zod: 4.4.3
 
   '@opentelemetry/api-logs@0.214.0':
     dependencies:
@@ -11731,6 +11804,8 @@ snapshots:
       '@use-gesture/core': 10.3.1
       react: 19.2.7
 
+  '@vercel/oidc@3.2.0': {}
+
   '@vitejs/plugin-react-swc@4.3.1(vite@8.1.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
@@ -11782,6 +11857,8 @@ snapshots:
 
   '@webgpu/types@0.1.71': {}
 
+  '@workflow/serde@4.1.0': {}
+
   '@xmldom/xmldom@0.8.13':
     optional: true
 
@@ -11810,6 +11887,13 @@ snapshots:
       - supports-color
 
   agent-base@7.1.4: {}
+
+  ai@7.0.34(zod@4.4.3):
+    dependencies:
+      '@ai-sdk/gateway': 4.0.26(zod@4.4.3)
+      '@ai-sdk/provider': 4.0.3
+      '@ai-sdk/provider-utils': 5.0.12(zod@4.4.3)
+      zod: 4.4.3
 
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
@@ -12992,6 +13076,8 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-schema-typed@8.0.2: {}
+
+  json-schema@0.4.0: {}
 
   json5@2.2.3: {}
 

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@agent-native/core": "latest",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "^7.0.34",
     "postgres": "^3.4.9"
   },
   "devDependencies": {
