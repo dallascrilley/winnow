@@ -58,6 +58,8 @@ Cross-app calls use signed A2A JWTs against each app's action HTTP surface
 (`packages/shared/src/server/a2a.ts`) — the framework's event bus is
 in-process, so workspace siblings compose over HTTP. Environments: local dev
 (`pnpm dev` → `http://127.0.0.1:8080/<app>`) and AWS (below).
+The gateway starts sibling apps on first navigation rather than prewarming all
+five database-backed processes at once.
 
 ## The AI engineering story
 
