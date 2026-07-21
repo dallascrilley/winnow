@@ -20,7 +20,12 @@ export default defineAction({
   run: async () => {
     const db = getDb();
     const rows = await db
-      .select()
+      .select({
+        accuracy: schema.evalRuns.accuracy,
+        caseCount: schema.evalRuns.caseCount,
+        model: schema.evalRuns.model,
+        createdAt: schema.evalRuns.createdAt,
+      })
       .from(schema.evalRuns)
       .orderBy(desc(schema.evalRuns.createdAt))
       .limit(1);
@@ -31,9 +36,7 @@ export default defineAction({
       eval: {
         accuracy: run.accuracy,
         caseCount: run.caseCount,
-        passCount: run.passCount,
         model: run.model,
-        promptHash: run.promptHash,
         createdAt: run.createdAt,
       },
     };
