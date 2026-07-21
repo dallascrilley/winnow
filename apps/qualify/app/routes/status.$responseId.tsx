@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
+import {
+  formatPublicEvalStatus,
+  loadPublicEvalStatus,
+} from "../lib/eval-status";
+import type { PublicEvalStatus } from "../lib/eval-status";
 
 import {
   apiBaseFromPathname,
@@ -128,6 +133,7 @@ export default function LeadStatusPage() {
   const { responseId } = useParams();
   const [payload, setPayload] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [evalInfo, setEvalInfo] = useState<PublicEvalStatus | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
   const [statusLinkState, setStatusLinkState] = useState<
@@ -144,6 +150,17 @@ export default function LeadStatusPage() {
     const api = apiBaseFromPathname(window.location.pathname);
     return { api, workspace: workspacePrefixFromApiBase(api) };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadPublicEvalStatus(fetch, bases.api).then((evalStatus) => {
+      if (!cancelled) setEvalInfo(evalStatus);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bases.api]);
 
   useEffect(() => {
     if (!responseId) return;
@@ -436,8 +453,9 @@ export default function LeadStatusPage() {
           href={funnelHref}
           className="text-zinc-400 underline underline-offset-2"
         >
-          Live funnel →
+          Live funnel →{" "}
         </a>
+        {evalInfo && <span>{formatPublicEvalStatus(evalInfo)}</span>}
       </footer>
     </div>
   );
