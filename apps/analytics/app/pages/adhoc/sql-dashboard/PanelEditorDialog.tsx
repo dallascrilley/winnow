@@ -1,9 +1,9 @@
 import {
-  PromptComposer,
   useActionQuery,
   useSendToAgentChat,
   useT,
 } from "@agent-native/core/client";
+import { PromptComposer } from "@agent-native/core/client/composer";
 import { IconAlertTriangle, IconAlignLeft } from "@tabler/icons-react";
 import {
   useEffect,
