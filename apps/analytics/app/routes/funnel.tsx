@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
  */
 
 interface FunnelPayload {
+  source: "live" | "offline-demo";
   generatedAt: string;
   funnel: { stage: string; n: number }[];
   submissionsByDay: { date: string; n: number }[];
@@ -202,7 +203,10 @@ export default function PublicFunnelPage() {
         <p className="mt-2 text-sm text-zinc-500">
           Form submit → agent enrichment → LLM ICP scoring (visible reasoning) →
           human review gate → round-robin routing → booked meeting. Synthetic
-          demo data, refreshed live.
+          demo data
+          {data?.source === "offline-demo"
+            ? " · offline preview."
+            : ", refreshed live."}
         </p>
       </header>
 

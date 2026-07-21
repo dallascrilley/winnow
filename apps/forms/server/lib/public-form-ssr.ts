@@ -363,6 +363,18 @@ function renderFormPage(
 
   const fieldsHtml = fields.map(renderField).join("\n");
 
+  const demoControlsHtml =
+    form.slug === "talk-to-sales"
+      ? `<section class="demo-controls" aria-label="Demo examples">
+          <p class="demo-controls-title">Try the demo with a sample lead</p>
+          <div class="demo-actions">
+            <button type="button" class="demo-fill" data-demo-fill="icp">Fill sample ICP (demo)</button>
+            <button type="button" class="demo-fill" data-demo-fill="mid-band">Fill mid-band (demo)</button>
+          </div>
+          <p class="demo-reassurance">Demo with synthetic data. Nothing you enter leaves this demo.</p>
+        </section>`
+      : "";
+
   return `<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -407,6 +419,8 @@ function renderFormPage(
       <h1>${escapeHtml(form.title)}</h1>
       ${form.description ? `<p class="desc">${escapeHtml(form.description)}</p>` : ""}
     </div>
+
+    ${demoControlsHtml}
 
     <form id="mainForm" novalidate>
       <input type="text" id="_hp" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;pointer-events:none">
@@ -484,6 +498,36 @@ function renderFormPage(
     toastEl.style.display = "block";
     toastTimer = setTimeout(function() { toastEl.style.display = "none"; }, 4000);
   }
+
+  // Demo form presets
+  var DEMO_VALUES = {
+    icp: {
+      name: "Alex Rivera",
+      email: "alex.rivera@northwind.io",
+      company_size: "51-200",
+      message: "Evaluating an agent-native inbound pipeline for our mid-market sales team.",
+    },
+    "mid-band": {
+      name: "Sam Chen",
+      email: "sam@startupmail.com",
+      company_size: "11-50",
+      message: "Curious about pricing for a small pilot.",
+    },
+  };
+  document.querySelectorAll("[data-demo-fill]").forEach(function(button) {
+    button.addEventListener("click", function() {
+      var values = DEMO_VALUES[button.dataset.demoFill];
+      if (!values) return;
+      Object.keys(values).forEach(function(name) {
+        var input = document.querySelector('[name="' + name + '"]');
+        if (!input) return;
+        input.value = values[name];
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      updateVisibility();
+    });
+  });
 
   // Rating stars
   document.querySelectorAll(".rating-group").forEach(function(group) {
@@ -727,6 +771,13 @@ body{background:hsl(var(--bg));color:hsl(var(--fg));min-height:100vh;-webkit-fon
 .header{margin-bottom:32px}
 .header h1{font-size:1.5rem;font-weight:600;line-height:1.3;letter-spacing:-0.01em}
 .desc{margin-top:6px;font-size:0.875rem;color:hsl(var(--muted-fg));line-height:1.5}
+
+.demo-controls{margin:-8px 0 24px;padding:14px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--muted))}
+.demo-controls-title{font-size:0.8125rem;font-weight:600;color:hsl(var(--card-fg))}
+.demo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.demo-fill{padding:7px 10px;font:inherit;font-size:0.75rem;font-weight:500;color:hsl(var(--card-fg));background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:var(--radius);cursor:pointer}
+.demo-fill:hover{border-color:hsl(var(--ring));background:hsl(var(--bg))}
+.demo-reassurance{margin-top:10px;font-size:0.75rem;line-height:1.4;color:hsl(var(--muted-fg))}
 
 .fields-card{display:flex;flex-direction:column;gap:24px}
 

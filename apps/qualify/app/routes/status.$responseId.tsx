@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
+
 import {
   formatPublicEvalStatus,
   loadPublicEvalStatus,
 } from "../lib/eval-status";
 import type { PublicEvalStatus } from "../lib/eval-status";
-
 import {
+  absoluteCrossAppHref,
   apiBaseFromPathname,
   statusLookupState,
   workspacePrefixFromApiBase,
@@ -55,7 +56,6 @@ const TERMINAL = new Set([
   "chain_failed",
   "pending_approval",
 ]);
-
 
 function stageIndex(status: string): number {
   switch (status) {
@@ -136,9 +136,9 @@ export default function LeadStatusPage() {
   const [evalInfo, setEvalInfo] = useState<PublicEvalStatus | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
-  const [statusLinkState, setStatusLinkState] = useState<
-    "pending" | "invalid"
-  >("pending");
+  const [pageOrigin, setPageOrigin] = useState("");
+  const [statusLinkState, setStatusLinkState] =
+    useState<ReturnType<typeof statusLookupState>>("pending");
   const missingStatusPolls = useRef(0);
   const timer = useRef<number | undefined>(undefined);
   const clock = useRef<number | undefined>(undefined);
@@ -152,6 +152,7 @@ export default function LeadStatusPage() {
   }, []);
 
   useEffect(() => {
+    setPageOrigin(window.location.origin);
     let cancelled = false;
     void loadPublicEvalStatus(fetch, bases.api).then((evalStatus) => {
       if (!cancelled) setEvalInfo(evalStatus);
@@ -227,6 +228,7 @@ export default function LeadStatusPage() {
   }, [responseId, bases.api]);
 
   const lead = payload?.found ? payload.lead : null;
+  const delayedStatusLink = statusLinkState === "delayed";
   const invalidStatusLink = statusLinkState === "invalid";
   const waitingForLead =
     payload !== null && !payload.found && !invalidStatusLink;
@@ -237,6 +239,9 @@ export default function LeadStatusPage() {
   const funnelHref = journeyToken
     ? `${bases.workspace}/analytics/funnel?j=${encodeURIComponent(journeyToken)}`
     : `${bases.workspace}/analytics/funnel`;
+  const browserFunnelHref = pageOrigin
+    ? absoluteCrossAppHref(pageOrigin, funnelHref)
+    : funnelHref;
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl bg-zinc-950 px-6 py-12 text-zinc-100">
@@ -248,7 +253,9 @@ export default function LeadStatusPage() {
               ? `Hi${lead.name ? ` ${lead.name.split(" ")[0]}` : ""}, your request is being worked`
               : invalidStatusLink
                 ? "This status link is invalid"
-                : "Qualifying your request"}
+                : delayedStatusLink
+                  ? "We're still setting up your status"
+                  : "Qualifying your request"}
           </h1>
           {lead && !TERMINAL.has(lead.status) && (
             <p className="mt-2 text-xs text-zinc-500">
@@ -257,8 +264,9 @@ export default function LeadStatusPage() {
           )}
           {waitingForLead && (
             <p className="mt-2 text-xs text-zinc-500">
-              Submission received — waiting for the agent to open your case
-              (usually under a minute).
+              {delayedStatusLink
+                ? "We couldn't start your status timeline yet. Keep this page open; we'll continue checking automatically."
+                : "Submission received — waiting for the agent to open your case (usually under a minute)."}
             </p>
           )}
           {invalidStatusLink && (
@@ -408,7 +416,9 @@ export default function LeadStatusPage() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
             {payload === null
               ? "Loading status…"
-              : "Waiting for the agent to pick up your submission…"}
+              : delayedStatusLink
+                ? "We couldn't start your status timeline yet. This page will keep checking automatically."
+                : "Waiting for the agent to pick up your submission…"}
           </div>
         )}
         <ol className="space-y-3">
@@ -450,8 +460,20 @@ export default function LeadStatusPage() {
         Demo with synthetic data — a public rebuild of production lead-to-cash
         systems.{" "}
         <a
-          href={funnelHref}
+          href={browserFunnelHref}
           className="text-zinc-400 underline underline-offset-2"
+          onClick={(event) => {
+            if (
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
+            event.preventDefault();
+            window.location.assign(funnelHref);
+          }}
         >
           Live funnel →{" "}
         </a>

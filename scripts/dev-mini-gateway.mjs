@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Minimal local gateway for live form→qualify E2E without full workspace
- * (avoids Dispatch :8100 startup loop). Prefix-stripping reverse proxy:
+ * (avoids Dispatch :8100 startup loop). Prefix-stripping reverse proxy by default;
+ * set PRESERVE_APP_PREFIX=1 for production builds compiled with APP_BASE_PATH.
  *   /forms/*     -> 127.0.0.1:8102/*
  *   /qualify/*   -> 127.0.0.1:8103/*
  *   /scheduler/* -> 127.0.0.1:8104/* (optional)
@@ -11,6 +12,7 @@ import http from "node:http";
 import { request as httpRequest } from "node:http";
 
 const PORT = Number(process.env.MINI_GATEWAY_PORT || 8080);
+const PRESERVE_APP_PREFIX = process.env.PRESERVE_APP_PREFIX === "1";
 const MAP = {
   forms: Number(process.env.FORMS_PORT || 8102),
   qualify: Number(process.env.QUALIFY_PORT || 8103),
@@ -43,13 +45,11 @@ const server = http.createServer((req, res) => {
   const m = url.match(/^\/(forms|qualify|scheduler|analytics)(\/.*)?(\?.*)?$/);
   if (!m) {
     res.writeHead(200, { "content-type": "text/plain" });
-    res.end(
-      "mini-gateway ok\npaths: /forms /qualify /scheduler /analytics\n",
-    );
+    res.end("mini-gateway ok\npaths: /forms /qualify /scheduler /analytics\n");
     return;
   }
   const app = m[1];
-  const rest = `${m[2] || "/"}${m[3] || ""}`;
+  const rest = PRESERVE_APP_PREFIX ? url : `${m[2] || "/"}${m[3] || ""}`;
   proxy(req, res, MAP[app], rest);
 });
 
