@@ -1,9 +1,9 @@
 import {
   useSendToAgentChat,
-  PromptComposer,
   useActionQuery,
   useT,
 } from "@agent-native/core/client";
+import { PromptComposer } from "@agent-native/core/client/composer";
 import {
   IconAlertCircle,
   IconCheck,

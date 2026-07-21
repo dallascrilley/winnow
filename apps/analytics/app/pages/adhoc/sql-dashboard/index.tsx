@@ -1,6 +1,5 @@
 import {
   ShareButton,
-  PresenceBar,
   useCollaborativeDoc,
   generateTabId,
   emailToColor,
@@ -13,6 +12,7 @@ import {
   useT,
   type CollabUser,
 } from "@agent-native/core/client";
+import { PresenceBar } from "@agent-native/toolkit/collab-ui";
 import {
   useDroppable,
   DndContext,
