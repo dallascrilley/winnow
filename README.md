@@ -46,13 +46,13 @@ running it locally with `pnpm dev`):
 
 ## What's inside (5 apps, 1 workspace)
 
-| App | Role |
-| --- | --- |
-| `forms` | Intake — forked template; a post-insert hook hands each `talk-to-sales` response to qualify over a signed A2A call |
-| `qualify` | The brain — custom app: enrichment, LLM ICP scoring (structured JSON, deterministic decoding), band policy, HITL approval queue, golden eval suite |
-| `scheduler` | Routing + booking — forked calendar template composed with `@agent-native/scheduling`: consumer-side rule evaluator, round-robin over AE-owned availability, public booking page |
+| App         | Role                                                                                                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `forms`     | Intake — forked template; a post-insert hook hands each `talk-to-sales` response to qualify over a signed A2A call                                                                |
+| `qualify`   | The brain — custom app: enrichment, LLM ICP scoring (structured JSON, deterministic decoding), band policy, HITL approval queue, golden eval suite                                |
+| `scheduler` | Routing + booking — forked calendar template composed with `@agent-native/scheduling`: consumer-side rule evaluator, round-robin over AE-owned availability, public booking page  |
 | `analytics` | Funnel — forked analytics template; qualify emits stage events to its first-party track endpoint; public scoped read + public funnel page, full SQL dashboard for logged-in views |
-| `dispatch` | Approval delivery (Slack leg — deferred; see `docs/slack-wiring.md`) |
+| `dispatch`  | Approval delivery (Slack leg — deferred; see `docs/slack-wiring.md`)                                                                                                              |
 
 Cross-app calls use signed A2A JWTs against each app's action HTTP surface
 (`packages/shared/src/server/a2a.ts`) — the framework's event bus is
@@ -72,7 +72,7 @@ five database-backed processes at once.
   the demo runs fully offline; `QUALIFY_LLM_PROVIDER=openai` flips to hosted
   `gpt-5-mini`).
 - **Tool use as the application surface.** Every operation is a framework
-  *action* — the agent calls them as tools, the UI calls the same surface
+  _action_ — the agent calls them as tools, the UI calls the same surface
   over HTTP, and sibling apps call each other's actions with signed A2A
   tokens. There is no second, hidden set of endpoints.
 - **Evals as a gate, not a garnish.** 24 golden cases (obvious-fit, mid-band,
@@ -97,64 +97,39 @@ five database-backed processes at once.
 Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
 DNS.
 
+The standard profile is now one bounded operator workflow. Its safe default is
+a no-AWS dry run:
+
 ```bash
-infra/interview.sh up            # apply (~15 min) → build+push → healthz → seed → smoke → receipt
-infra/interview.sh status        # outputs + ECS + healthz + session age; detects ghost state
-infra/interview.sh down          # destroy everything again
-infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
-infra/interview.sh check-expiry  # cron: non-zero if session older than warn/critical hours
-infra/interview.sh residual      # read-only inventory of leftover inbound-lite AWS
+./infra/proof-standard.sh --dry-run
 ```
 
-Full runbook (DNS automation via 1Password, timings, receipts):
-[`docs/interview-mode.md`](docs/interview-mode.md).
+The cost-incurring `--execute` mode requires an explicit confirmation, runs a
+fresh seed and offline eval, uses immutable images, and defaults to verified
+teardown. See [`infra/README.md`](infra/README.md) for the live operator gate,
+24-hour interview mode, automatic cleanup behavior, and receipt contract.
 
-Each step can also be run by hand (`terraform apply`, `infra/push-images.sh`,
-`aws ecs update-service --force-new-deployment`, a `run-task` seed, then
-`./scripts/smoke.sh <base-url>`) — the script sequences them and reads
-runtime identifiers from `terraform output`, since ALB/subnet/SG names change
-on every re-apply. With a zone-capable Cloudflare token in 1Password, `up`
-automates DNS + HTTPS; otherwise it prints the records to add by hand (see
-the runbook).
-
-The stack applies clean from scratch and is destroyed again between proof
-runs rather than left running — see the cost case study below for why, and
-[`docs/interview-mode.md`](docs/interview-mode.md) for the activate → verify
-→ capture receipts → destroy runbook.
-
-### Full vs. on-demand: a cost case study
-
-The original estimate here was ~$55/month (Fargate 2 vCPU/8 GB,
-db.t4g.micro, ALB). A rate-card reconciliation later found that number
-missed real Fargate vCPU/memory pricing, RDS storage/IO, the ALB hourly
-charge, and public IPv4 — true always-on cost is closer to **$122–125/month**.
-Not a rounding error; it changes the tradeoff.
-
-An idle ECS/RDS/ALB stack doesn't prove more by sitting there between
-visits than a stack that applies cleanly, passes its planted-lead smoke
-test, and gets torn down on a dated receipt trail. So the full stack now
-runs as **interview mode**: activate on demand, verify, capture receipts
-(Terraform apply/destroy, image digest, health + smoke results), destroy.
-Local dev (`pnpm dev`, offline Ollama scoring) stays live at all times for
-anyone who wants to run it themselves — `terraform destroy` retires the
-managed stack, not the project.
-
-A separate 2026-07-18 **inbound-lite** experiment (stopped EC2 + EIP + wake
-Lambda, etc.) is still in the AWS account and is **not** managed by
-`infra/interview.sh`. Inventory + teardown notes:
-[`infra/RESIDUAL-AWS.md`](infra/RESIDUAL-AWS.md).
+DNS is the one operator step: no available Cloudflare credential can see the
+zone, so `terraform output dns_records_to_create` prints the ACM validation
+CNAME + the standard-origin CNAME to add by hand (or set `manage_dns=true` with a
+zone-capable token). The standard stack currently models at roughly
+$122–125/month (Fargate 2 vCPU/8 GB, db.t4g.micro, ALB, and public IPv4), so it
+is being retained as bounded proof mode rather than permanent runtime. See the
+dual-profile plan in
+[`docs/plans/2026-07-17-refactor-inbound-lite-architecture-plan.md`](docs/plans/2026-07-17-refactor-inbound-lite-architecture-plan.md).
 
 ## Environment
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL_BASE` | SSM (Terraform) | `postgres://user:pass@host:5432`; the runner derives one DB per app (`inbound_<app>`) |
-| `BETTER_AUTH_SECRET`, `A2A_SECRET` | SSM (Terraform) | Auth signing + cross-app JWT secret |
-| `ANALYTICS_PUBLIC_KEY` | SSM (Terraform) | First-party track write key (seed inserts the same value) |
-| `QUALIFY_LLM_PROVIDER` / `QUALIFY_LLM_MODEL` | task env | `ollama`/`qwen3:4b` by default; `openai` flips to hosted |
-| `OPENAI_API_KEY` | SSM (Terraform, optional) | Only needed for hosted scoring |
-| `AGENT_USER_EMAIL` | task env | First-boot auto-account owner email |
-| `PUBLIC_URL` / `APP_URL` / `BETTER_AUTH_URL` | task env | Public origin incl. the `/inbound` prefix |
+| Variable                                     | Where                     | Purpose                                                                                          |
+| -------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL_BASE`                          | SSM (Terraform)           | `postgres://user:pass@host:5432`; the runner derives one DB per app (`inbound_<app>`)            |
+| `DATABASE_SSLMODE`                           | task env                  | `require` by default for RDS; lite explicitly uses `disable` only on its private Compose network |
+| `BETTER_AUTH_SECRET`, `A2A_SECRET`           | SSM (Terraform)           | Auth signing + cross-app JWT secret                                                              |
+| `ANALYTICS_PUBLIC_KEY`                       | SSM (Terraform)           | First-party track write key (seed inserts the same value)                                        |
+| `QUALIFY_LLM_PROVIDER` / `QUALIFY_LLM_MODEL` | task env                  | `ollama`/`qwen3:4b` by default; `openai` flips to hosted                                         |
+| `OPENAI_API_KEY`                             | SSM (Terraform, optional) | Only needed for hosted scoring                                                                   |
+| `AGENT_USER_EMAIL`                           | task env                  | First-boot auto-account owner email                                                              |
+| `PUBLIC_URL` / `APP_URL` / `BETTER_AUTH_URL` | task env                  | Public origin incl. the `/inbound` prefix                                                        |
 
 Local dev uses per-app `.env` files instead (gitignored) — see
 `apps/*/. env.example`; dotenv does **not** override real env vars, so stale

@@ -33,7 +33,9 @@ provider "cloudflare" {
 }
 
 locals {
-  name       = "inbound-demo"
-  public_url = "https://${var.demo_hostname}${var.public_prefix}"
-  apps       = ["analytics", "dispatch", "forms", "qualify", "scheduler"]
+  name             = "inbound-demo"
+  public_url       = "https://${var.demo_hostname}${var.public_prefix}"
+  apps             = ["analytics", "dispatch", "forms", "qualify", "scheduler"]
+  app_image_ref    = var.app_image_ref != "" ? var.app_image_ref : "${aws_ecr_repository.app.repository_url}:latest"
+  ollama_image_ref = var.ollama_image_ref != "" ? var.ollama_image_ref : "${aws_ecr_repository.ollama.repository_url}:latest"
 }

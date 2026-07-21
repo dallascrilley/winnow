@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Post-deploy smoke (U8): planted lead against the public URL, watched to a
 # terminal status, then the public funnel checked for movement.
-#   ./scripts/smoke.sh https://demos.dallascrilley.com/inbound
+#   ./scripts/smoke.sh https://inbound-standard-origin.dallascrilley.com/inbound
 set -uo pipefail
 
-BASE="${1:-https://demos.dallascrilley.com/inbound}"
+BASE="${1:?usage: scripts/smoke.sh <base-url>}"
 BASE="${BASE%/}"
 EMAIL="smoke.tester@meridianops.com"
 FAIL=0
@@ -43,7 +43,7 @@ RESP=$(curl -s -m 60 -X POST "$BASE/forms/api/submit/$FORM_ID" \
   -d "{\"data\":{\"name\":\"Smoke Tester\",\"email\":\"$EMAIL\",\"company_size\":\"201-500\",\"message\":\"VP Revenue Operations. Inbound demo requests sit unrouted for days; need scoring and round-robin assignment for a 12-rep team. Evaluating now.\"},\"_hp\":\"\",\"_t\":$T}")
 RID=$(printf '%s' "$RESP" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])' 2>/dev/null)
 if [ -z "$RID" ]; then say "FAIL submit: $RESP"; exit 1; fi
-say "response id: $RID — waiting for terminal status (ollama CPU scoring is slow)"
+say "response id: $RID — waiting for scoring to reach a terminal status"
 
 STATUS=""
 for _ in $(seq 1 60); do

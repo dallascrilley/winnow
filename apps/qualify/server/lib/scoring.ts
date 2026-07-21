@@ -47,6 +47,17 @@ export type CallLlm = (
 // the ledger overestimates slightly, which is the safe direction.
 const PRICE_PER_TOKEN = { input: 0.25 / 1_000_000, output: 2.0 / 1_000_000 };
 
+const SAFE_OPENAI_ERROR_CODES = new Set([
+  "content_policy_violation",
+  "context_length_exceeded",
+  "insufficient_quota",
+  "invalid_api_key",
+  "invalid_request_error",
+  "model_not_found",
+  "rate_limit_exceeded",
+  "server_error",
+]);
+
 export const DEFAULT_MODEL = "gpt-5-mini";
 
 // The band policy (Decision Log #4): >=0.8 auto-route, 0.4–0.8 human review,
@@ -217,11 +228,18 @@ export async function callOpenAI(
         { role: "user", content: user },
       ],
     }),
+    signal: AbortSignal.timeout(60_000),
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`OpenAI ${res.status}: ${body.slice(0, 300)}`);
+    const body = (await res.json().catch(() => null)) as {
+      error?: { code?: unknown; type?: unknown };
+    } | null;
+    const safeCode = [body?.error?.code, body?.error?.type].find(
+      (value): value is string =>
+        typeof value === "string" && SAFE_OPENAI_ERROR_CODES.has(value),
+    ) ?? "request_failed";
+    throw new Error(`OpenAI ${res.status}: ${safeCode}`);
   }
 
   const json = (await res.json()) as {
@@ -257,14 +275,16 @@ export async function callOllama(
       model,
       format: "json",
       stream: false,
+      think: false,
       // Deterministic decoding: a scorer that gives different answers to the
       // same lead twice makes both routing and the U6 eval gate meaningless.
-      options: { temperature: 0 },
+      options: { temperature: 0, num_predict: 256 },
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
     }),
+    signal: AbortSignal.timeout(180_000),
   });
 
   if (!res.ok) {

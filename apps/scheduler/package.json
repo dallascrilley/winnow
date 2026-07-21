@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@agent-native/core": "latest",
-    "@agent-native/scheduling": "0.1.25",
+    "@agent-native/scheduling": "latest",
     "@agent-native/toolkit": "latest",
     "@fontsource-variable/inter": "^5.2.8",
     "@inbound/shared": "workspace:*",

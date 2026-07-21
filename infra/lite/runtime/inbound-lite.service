@@ -1,0 +1,20 @@
+[Unit]
+Description=Inbound hibernating lite runtime
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/inbound-lite
+EnvironmentFile=/etc/inbound-lite/config.env
+EnvironmentFile=-/run/inbound-lite/runtime.env
+ExecStart=/opt/inbound-lite/deploy.sh
+ExecStop=-/opt/inbound-lite/backup-golden-state.sh
+ExecStop=/usr/bin/docker compose --env-file /run/inbound-lite/runtime.env --project-directory /opt/inbound-lite -f /opt/inbound-lite/compose.yaml down
+TimeoutStartSec=900
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

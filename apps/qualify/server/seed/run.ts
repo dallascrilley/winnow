@@ -59,3 +59,7 @@ await db.insert(schema.evalCases).values(
 console.log(
   `seed: firmographics ${rows.length} total (${missing.length} inserted), icp_definition set, ${EVAL_CASES.length} eval cases`,
 );
+
+// createGetDb owns a private driver pool with no public close hook. This file
+// is a CLI entry point, so exit only after every seed write has completed.
+process.exit(0);

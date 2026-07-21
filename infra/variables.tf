@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "demo_hostname" {
   type    = string
-  default = "demos.dallascrilley.com"
+  default = "inbound-standard-origin.dallascrilley.com"
 }
 
 variable "public_prefix" {
@@ -56,4 +56,30 @@ variable "openai_api_key" {
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "app_image_ref" {
+  description = "Immutable ECR app reference from scripts/push-app-image.sh. Empty is bootstrap-only before the first image push."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.app_image_ref == "" || can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$", var.app_image_ref))
+    error_message = "app_image_ref must be empty for bootstrap or an immutable ECR @sha256 reference."
+  }
+}
+
+variable "ollama_image_ref" {
+  description = "Immutable ECR Ollama reference from infra/push-images.sh. Empty is bootstrap-only before the first image push."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.ollama_image_ref == "" || can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$", var.ollama_image_ref))
+    error_message = "ollama_image_ref must be empty for bootstrap or an immutable ECR @sha256 reference."
+  }
+}
+
+variable "bootstrap_images" {
+  description = "Create infrastructure and ECR repositories with ECS scaled to zero before the first image push. Never use for a running deployment."
+  type        = bool
+  default     = false
 }

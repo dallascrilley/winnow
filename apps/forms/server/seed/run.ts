@@ -76,3 +76,7 @@ if (existing[0]) {
   });
   console.log(`seed: talk-to-sales created (${id})`);
 }
+
+// createGetDb owns a private driver pool with no public close hook. This file
+// is a CLI entry point, so exit only after every seed write has completed.
+process.exit(0);

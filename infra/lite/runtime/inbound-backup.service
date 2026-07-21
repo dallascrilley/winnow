@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup Inbound synthetic golden state
+After=inbound-lite.service
+Requires=inbound-lite.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/inbound-lite/config.env
+EnvironmentFile=-/run/inbound-lite/runtime.env
+ExecStart=/opt/inbound-lite/backup-golden-state.sh
+TimeoutStartSec=900
