@@ -32,6 +32,68 @@ const PENDING_SQL = `SELECT COUNT(*) AS open FROM (SELECT anonymous_id FROM anal
 const EVAL_SQL = `SELECT (properties::jsonb ->> 'accuracy')::float AS accuracy, properties::jsonb ->> 'model' AS model, properties::jsonb ->> 'caseCount' AS case_count, timestamp AS created_at FROM analytics_events WHERE event_name = 'eval_completed' AND app = 'qualify' ORDER BY timestamp DESC LIMIT 1`;
 
 const RECENT_SQL = `SELECT timestamp AS time, properties::jsonb ->> 'tier' AS tier, properties::jsonb ->> 'segment' AS segment, properties::jsonb ->> 'fitScore' AS fit FROM analytics_events WHERE event_name = 'lead_scored' AND app = 'qualify' ORDER BY timestamp DESC LIMIT 12`;
+function offlineDemoFunnel() {
+  return {
+    source: "offline-demo" as const,
+    generatedAt: new Date().toISOString(),
+    funnel: [
+      { stage: "1 submitted", n: 347 },
+      { stage: "2 enriched", n: 338 },
+      { stage: "3 scored", n: 331 },
+      { stage: "4 routed", n: 286 },
+      { stage: "5 booked", n: 94 },
+    ],
+    submissionsByDay: [
+      { date: "2026-07-14", n: 38 },
+      { date: "2026-07-15", n: 42 },
+      { date: "2026-07-16", n: 35 },
+      { date: "2026-07-17", n: 49 },
+      { date: "2026-07-18", n: 44 },
+      { date: "2026-07-19", n: 51 },
+    ],
+    tierDistribution: [
+      { label: "high", n: 124 },
+      { label: "mid", n: 139 },
+      { label: "low", n: 68 },
+    ],
+    segmentDistribution: [
+      { label: "mid-market", n: 153 },
+      { label: "enterprise", n: 102 },
+      { label: "smb", n: 76 },
+    ],
+    routedLeads: 286,
+    medianSecondsToRoute: 43,
+    decidedApprovals: 57,
+    approvalLatencySeconds: 79,
+    pendingApprovals: 8,
+    eval: {
+      accuracy: 0.96,
+      model: "deterministic evaluator",
+      caseCount: 24,
+      createdAt: "2026-07-19T12:00:00.000Z",
+    },
+    recentScores: [
+      {
+        time: "2026-07-19T16:24:00.000Z",
+        tier: "high",
+        segment: "mid-market",
+        fit: 0.91,
+      },
+      {
+        time: "2026-07-19T15:48:00.000Z",
+        tier: "mid",
+        segment: "enterprise",
+        fit: 0.72,
+      },
+      {
+        time: "2026-07-19T15:14:00.000Z",
+        tier: "low",
+        segment: "smb",
+        fit: 0.34,
+      },
+    ],
+  };
+}
 
 export default defineAction({
   description:
@@ -40,7 +102,7 @@ export default defineAction({
   http: { method: "GET" },
   requiresAuth: false,
   run: async () => {
-    if (!isPostgres()) throw new Error("public funnel requires Postgres");
+    if (!isPostgres()) return offlineDemoFunnel();
     const exec = getDbExec();
     const q = async (sql: string) => {
       const res = await exec.execute({ sql });
@@ -75,6 +137,7 @@ export default defineAction({
     const evalLatest = evalRow[0];
 
     return {
+      source: "live" as const,
       generatedAt: new Date().toISOString(),
       funnel: funnel.map((r) => ({ stage: String(r.stage), n: num(r.n) })),
       submissionsByDay: submissionsByDay.map((r) => ({
