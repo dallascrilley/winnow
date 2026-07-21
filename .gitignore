@@ -36,3 +36,4 @@ data/
 
 # Personal agent memory — per-developer, not shared
 learnings.md
+.todos/

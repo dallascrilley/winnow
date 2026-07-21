@@ -18,20 +18,22 @@
     "@agent-native/core": "latest",
     "@agent-native/toolkit": "latest",
     "@fontsource-variable/inter": "^5.2.8",
+    "@inbound/shared": "workspace:*",
     "@libsql/client": "^0.15.8",
+    "@react-router/dev": "^8.1.0",
+    "@react-router/fs-routes": "^8.1.0",
     "@tabler/icons-react": "catalog:",
     "h3": "catalog:",
     "isbot": "^5",
     "node-pty": "^1.1.0",
-    "zod": "^4.4.3",
-    "@inbound/shared": "workspace:*",
     "postgres": "^3.4.9",
-    "@react-router/dev": "^8.1.0",
-    "@react-router/fs-routes": "^8.1.0",
     "react-router": "^8.1.0",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@assistant-ui/store": ">=0.2.9 <0.2.14",
+    "@assistant-ui/tap": "^0.5.14",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -87,9 +89,7 @@
     "tsx": "^4.20.3",
     "typescript-7": "catalog:",
     "vaul": "^1.1.2",
-    "vitest": "catalog:",
-    "@assistant-ui/store": ">=0.2.9 <0.2.14",
-    "@assistant-ui/tap": "^0.5.14"
+    "vitest": "catalog:"
   },
   "engines": {
     "node": ">=22.22.0"

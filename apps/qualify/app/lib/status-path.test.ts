@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   apiBaseFromPathname,
+  MAX_DELAYED_STATUS_POLLS,
   MAX_PENDING_STATUS_POLLS,
   statusLookupState,
   workspacePrefixFromApiBase,
@@ -24,8 +25,10 @@ describe("status path helpers", () => {
 });
 
 describe("public status lookup limits", () => {
-  it("rejects a link after bounded missing-status polls", () => {
+  it("shows a recoverable delay before rejecting a missing-status link", () => {
     expect(statusLookupState(MAX_PENDING_STATUS_POLLS - 1)).toBe("pending");
-    expect(statusLookupState(MAX_PENDING_STATUS_POLLS)).toBe("invalid");
+    expect(statusLookupState(MAX_PENDING_STATUS_POLLS)).toBe("delayed");
+    expect(statusLookupState(MAX_DELAYED_STATUS_POLLS - 1)).toBe("delayed");
+    expect(statusLookupState(MAX_DELAYED_STATUS_POLLS)).toBe("invalid");
   });
 });

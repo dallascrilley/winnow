@@ -153,6 +153,50 @@ describe("public form SSR", () => {
     }
   });
 
+  it("renders demo-fill controls only on the public talk-to-sales form", async () => {
+    const rows = [
+      {
+        id: "form-demo-123",
+        slug: "talk-to-sales",
+        title: "Talk to sales",
+        description: "Tell us what you're solving.",
+        ownerEmail: "owner@example.test",
+        updatedAt: "2026-07-20T12:00:00.000Z",
+        fields: "[]",
+        settings: "{}",
+        status: "published",
+        deletedAt: null,
+      },
+      {
+        id: "form-standard-123",
+        slug: "customer-intake",
+        title: "Customer intake",
+        description: null,
+        ownerEmail: "owner@example.test",
+        updatedAt: "2026-07-20T12:00:00.000Z",
+        fields: "[]",
+        settings: "{}",
+        status: "published",
+        deletedAt: null,
+      },
+    ];
+    mockGetDb.mockReturnValue(createDbWithRows(rows));
+
+    const demo = await renderPublicFormHtml(
+      "https://forms.example.test/f/talk-to-sales",
+    );
+    const standard = await renderPublicFormHtml(
+      "https://forms.example.test/f/customer-intake",
+    );
+
+    expect(demo.html).toContain("Fill sample ICP (demo)");
+    expect(demo.html).toContain("Fill mid-band (demo)");
+    expect(demo.html).toContain("Nothing you enter leaves this demo.");
+    expect(demo.html).toContain('data-demo-fill="icp"');
+    expect(standard.html).not.toContain("Fill sample ICP (demo)");
+    expect(standard.html).not.toContain("Nothing you enter leaves this demo.");
+  });
+
   it("refreshes cached forms after invalidating old and new lookup keys", async () => {
     const rows = [
       {
