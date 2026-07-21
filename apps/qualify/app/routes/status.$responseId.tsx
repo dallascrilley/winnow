@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
+
 import {
   formatPublicEvalStatus,
   loadPublicEvalStatus,
 } from "../lib/eval-status";
 import type { PublicEvalStatus } from "../lib/eval-status";
-
 import {
   apiBaseFromPathname,
   statusLookupState,
@@ -55,7 +55,6 @@ const TERMINAL = new Set([
   "chain_failed",
   "pending_approval",
 ]);
-
 
 function stageIndex(status: string): number {
   switch (status) {
@@ -136,9 +135,8 @@ export default function LeadStatusPage() {
   const [evalInfo, setEvalInfo] = useState<PublicEvalStatus | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [journeyToken, setJourneyToken] = useState<string | null>(null);
-  const [statusLinkState, setStatusLinkState] = useState<
-    "pending" | "invalid"
-  >("pending");
+  const [statusLinkState, setStatusLinkState] =
+    useState<ReturnType<typeof statusLookupState>>("pending");
   const missingStatusPolls = useRef(0);
   const timer = useRef<number | undefined>(undefined);
   const clock = useRef<number | undefined>(undefined);
@@ -227,6 +225,7 @@ export default function LeadStatusPage() {
   }, [responseId, bases.api]);
 
   const lead = payload?.found ? payload.lead : null;
+  const delayedStatusLink = statusLinkState === "delayed";
   const invalidStatusLink = statusLinkState === "invalid";
   const waitingForLead =
     payload !== null && !payload.found && !invalidStatusLink;
@@ -248,7 +247,9 @@ export default function LeadStatusPage() {
               ? `Hi${lead.name ? ` ${lead.name.split(" ")[0]}` : ""}, your request is being worked`
               : invalidStatusLink
                 ? "This status link is invalid"
-                : "Qualifying your request"}
+                : delayedStatusLink
+                  ? "We're still setting up your status"
+                  : "Qualifying your request"}
           </h1>
           {lead && !TERMINAL.has(lead.status) && (
             <p className="mt-2 text-xs text-zinc-500">
@@ -257,8 +258,9 @@ export default function LeadStatusPage() {
           )}
           {waitingForLead && (
             <p className="mt-2 text-xs text-zinc-500">
-              Submission received — waiting for the agent to open your case
-              (usually under a minute).
+              {delayedStatusLink
+                ? "We couldn't start your status timeline yet. Keep this page open; we'll continue checking automatically."
+                : "Submission received — waiting for the agent to open your case (usually under a minute)."}
             </p>
           )}
           {invalidStatusLink && (
@@ -408,7 +410,9 @@ export default function LeadStatusPage() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
             {payload === null
               ? "Loading status…"
-              : "Waiting for the agent to pick up your submission…"}
+              : delayedStatusLink
+                ? "We couldn't start your status timeline yet. This page will keep checking automatically."
+                : "Waiting for the agent to pick up your submission…"}
           </div>
         )}
         <ol className="space-y-3">
