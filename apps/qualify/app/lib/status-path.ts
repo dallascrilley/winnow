@@ -7,3 +7,12 @@ export function apiBaseFromPathname(pathname: string): string {
 export function workspacePrefixFromApiBase(base: string): string {
   return base.replace(/\/qualify\/?$/, "") || "";
 }
+
+/** At 2.5 seconds per poll, wait one minute for asynchronous lead creation. */
+export const MAX_PENDING_STATUS_POLLS = 24;
+
+/** Turns repeated missing status reads into a terminal invalid-link state. */
+export function statusLookupState(polls: number): "pending" | "invalid" {
+  if (polls >= MAX_PENDING_STATUS_POLLS) return "invalid";
+  return "pending";
+}

@@ -64,6 +64,11 @@ describe("get-lead-status", () => {
     mocks.select.mockReset();
   });
 
+  it("allows anonymous POST polling for capability-keyed status links", () => {
+    expect(getLeadStatus.http).toEqual({ method: "POST" });
+    expect(getLeadStatus.requiresAuth).toBe(false);
+  });
+
   it("returns only the explicit visitor-safe DTO", async () => {
     const query = mockLead([
       {
