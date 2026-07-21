@@ -24,6 +24,7 @@ export default defineAction({
         tier: schema.leads.tier,
         segment: schema.leads.segment,
         llmCostUsd: schema.leads.llmCostUsd,
+        scoreReasoning: schema.leads.scoreReasoning,
         createdAt: schema.leads.createdAt,
         formResponseId: schema.leads.formResponseId,
       })
