@@ -1,6 +1,6 @@
 import { defineAction } from "@agent-native/core/action";
 import { eq } from "@agent-native/core/db/schema";
-import { siblingActionFetch } from "@inbound/shared/server";
+import { siblingActionFetch } from "@winnow/shared/server";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";

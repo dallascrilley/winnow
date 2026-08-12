@@ -49,7 +49,7 @@
     "recharts": "^3.8.1",
     "vaul": "^1.1.2",
     "zod": "^4.3.6",
-    "@inbound/shared": "workspace:*",
+    "@winnow/shared": "workspace:*",
     "postgres": "^3.4.9",
     "@react-router/dev": "^8.1.0",
     "@react-router/fs-routes": "^8.1.0",

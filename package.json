@@ -27,7 +27,7 @@
   },
   "packageManager": "pnpm@10.14.0",
   "agent-native": {
-    "workspaceCore": "@inbound/shared"
+    "workspaceCore": "@winnow/shared"
   },
   "description": "Winnow - scores and routes inbound sales leads, gated by a 24-case model eval suite"
 }

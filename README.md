@@ -9,6 +9,17 @@ change in CI.
 This monorepo is a portfolio demo. All company and AE data is synthetic. Nothing
 you submit in a local run is shared.
 
+## Provenance
+
+Winnow is a **portfolio demo composed on** [`@agent-native/core`](https://www.npmjs.com/package/@agent-native/core) (BuilderIO agent-native workspace templates). The initial commit is scaffolded multi-app workspace; product logic for ICP scoring, band policy, human review, signed A2A routing, the 24-case eval suite, and interview-mode AWS deploy is hand-written on top of that base.
+
+Evidence:
+
+- Scaffold vs hand-written timeline: [`docs/receipts.md`](docs/receipts.md)
+- Architecture and request flow: [`docs/architecture.md`](docs/architecture.md)
+
+When reviewing as an engineer, start in `apps/qualify` (score, band, eval-core) and `packages/shared` rather than counting monorepo LOC.
+
 ## Quickstart (local first)
 
 ```bash
@@ -122,8 +133,7 @@ vars, so unset stale shell keys if values look wrong.
   table that stands in for a production search + crawl + LLM path.
 - Local scoring on a 4B model is slow on CPU (about 1-2 minutes per lead in the
   cloud layout). That is intentional so the demo runs offline at $0 per score.
-- Package path `@inbound/shared` is unchanged for import stability. Brand and
-  root package name are Winnow; a `@winnow/*` rename is a follow-up.
+- Workspace shared package is `@winnow/shared` (`packages/shared`).
 
 ## Links
 
