@@ -1,186 +1,139 @@
-# Inbound — the agent-native lead router
+# Winnow
 
-A public, no-login demo of an AI-run inbound pipeline: a form submission is
-enriched, scored for ICP fit by an LLM **with visible reasoning**, parked for
-human review when the score is borderline, round-robin routed to the right
-AE's calendar, booked, and counted — every stage live on a public dashboard.
+I built Winnow to score and route inbound sales leads the way I used to run
+lead-to-cash systems by hand: enrich the submission, score ICP fit with a
+visible reasoning trail, park borderline scores for a human, and book the rest
+against real AE availability. A 24-case model eval suite gates every accuracy
+change in CI.
 
-**Demo status:** activated on demand, not always-on. The full AWS stack
-(ECS Fargate + RDS + ALB) applies clean, gets verified against a real
-planted-lead run, and is torn down again rather than left running between
-visits — see [Full vs. on-demand](#full-vs-on-demand-a-cost-case-study)
-below for why. When active: <https://demos.dallascrilley.com/inbound>. Ask
-for a session, or run it yourself locally (`pnpm dev`, fully offline).
+This monorepo is a portfolio demo. All company and AE data is synthetic. Nothing
+you submit in a local run is shared.
 
-Built by Dallas Crilley as a portfolio piece: ten years of owning lead-to-cash
-operations, rebuilt as the agent-native version. Composed from the
-[Agent Native](https://github.com/BuilderIO/agent-native) framework's
-templates and packages — the full composition story, with every fork delta and
-discovery, is in [`docs/receipts.md`](docs/receipts.md).
+## Quickstart (local first)
 
-## The 2-minute demo
+```bash
+pnpm install
+cp .env.example .env
+# Optional: copy apps/*/.env.example for per-app overrides
+pnpm dev
+```
 
-This is what a visitor sees once the demo is active (or what you'll see
-running it locally with `pnpm dev`):
+Opens a local gateway at `http://127.0.0.1:8080/<app>` (forms, qualify,
+scheduler, analytics, dispatch). Scoring defaults to local Ollama
+(`qwen3:4b`). To use a hosted model:
 
-1. **Submit the form** at
-   <https://demos.dallascrilley.com/inbound/forms/f/talk-to-sales> — use a
-   business email at a mid-market company with a real sentence about inbound
-   volume, or click **Fill sample ICP (demo)** for non-persisting presets.
-   (Everything is synthetic; nothing you type leaves the demo.)
-2. **Watch your qualification** on the status page you're redirected to. It
-   polls live: enrichment → the LLM's fit score **and its reasoning** → the
-   routing decision. Strong fits auto-route to an AE in about a minute. Model
-   name and cost stay off the public page.
-3. **Book the meeting** — high-fit leads get a scheduling link with name/email
-   already filled from the form, and real availability from the routed AE
-   (round-robin over four AEs).
-4. **Open the funnel** from the status page (or
-   <https://demos.dallascrilley.com/inbound/analytics/funnel>) — submissions,
-   stage conversion, tier/segment mix, median time-to-route. With a short-lived
-   opaque journey token, your stage is highlighted without exposing lead ids.
-5. **The human gate:** mid-band scores (0.4–0.79) don't route — they park in
-   a review queue. The status page shows the parked state and, once a human
-   approves or rejects, the audit timeline names the actor (`human`) and
-   channel. Borderline leads never silently book or silently die.
+```bash
+export QUALIFY_LLM_PROVIDER=openai
+export OPENAI_API_KEY=...
+export QUALIFY_LLM_MODEL=gpt-5-mini   # optional
+```
 
-## What's inside (5 apps, 1 workspace)
+Node `>=22.22.0`, pnpm `10.14.0`.
+
+## Checks
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm eval              # offline 24-case gate (no LLM keys; CI runs this)
+pnpm --filter qualify eval:live   # full enrich→score path when a model is up
+```
+
+The offline eval is the CI gate: suite shape (exactly 24 cases), required tag
+groups, band-policy consistency with labels, enrichment over seeded
+firmographics, and stable prompt hashing. Live eval is the model accuracy gate
+and needs Ollama or OpenAI.
+
+## What runs where
 
 | App | Role |
 | --- | --- |
-| `forms` | Intake — forked template; a post-insert hook hands each `talk-to-sales` response to qualify over a signed A2A call |
-| `qualify` | The brain — custom app: enrichment, LLM ICP scoring (structured JSON, deterministic decoding), band policy, HITL approval queue, golden eval suite |
-| `scheduler` | Routing + booking — forked calendar template composed with `@agent-native/scheduling`: consumer-side rule evaluator, round-robin over AE-owned availability, public booking page |
-| `analytics` | Funnel — forked analytics template; qualify emits stage events to its first-party track endpoint; public scoped read + public funnel page, full SQL dashboard for logged-in views |
-| `dispatch` | Approval delivery (Slack leg — deferred; see `docs/slack-wiring.md`) |
+| `forms` | Intake. A post-insert hook hands each `talk-to-sales` response to qualify over a signed A2A call. |
+| `qualify` | Enrichment, LLM ICP scoring (structured JSON, temperature 0), band policy, human review queue, golden eval suite. |
+| `scheduler` | Round-robin over AE-owned availability and a public booking page. |
+| `analytics` | Funnel: submissions, stage conversion, tier/segment mix, latest eval accuracy. |
+| `dispatch` | Approval delivery. Slack wiring is specified in `docs/slack-wiring.md`; the in-app queue is what ships. |
 
-Cross-app calls use signed A2A JWTs against each app's action HTTP surface
-(`packages/shared/src/server/a2a.ts`) — the framework's event bus is
-in-process, so workspace siblings compose over HTTP. Environments: local dev
-(`pnpm dev` → `http://127.0.0.1:8080/<app>`) and AWS (below).
-The gateway starts sibling apps on first navigation rather than prewarming all
-five database-backed processes at once.
+Cross-app calls use signed A2A JWTs (`packages/shared`). The framework event bus
+is in-process, so workspace siblings compose over HTTP.
 
-## The AI engineering story
+## Pipeline in four steps
 
-- **Direct-API agents, not framework lock-in.** Scoring is a plain system +
-  user prompt returning strict JSON, parsed and policy-banded in code. The
-  LangChain equivalent would be an `LLMChain` with an output parser — here
-  it's ~60 lines with full control of decoding (temperature pinned to 0: a
-  scorer must give the same answer to the same lead twice), the token-cost
-  ledger per lead, and a provider seam (local Ollama `qwen3:4b` by default —
-  the demo runs fully offline; `QUALIFY_LLM_PROVIDER=openai` flips to hosted
-  `gpt-5-mini`).
-- **Tool use as the application surface.** Every operation is a framework
-  *action* — the agent calls them as tools, the UI calls the same surface
-  over HTTP, and sibling apps call each other's actions with signed A2A
-  tokens. There is no second, hidden set of endpoints.
-- **Evals as a gate, not a garnish.** 24 golden cases (obvious-fit, mid-band,
-  poor-fit, adversarial: free-email, student, vendor pitch, gibberish) run
-  through the real enrich→score path. Runs are keyed by model + prompt hash
-  (ICP, system prompt, and rules all move the id), so every accuracy move is
-  attributable. The suite caught three real defects in one afternoon —
-  sampling nondeterminism, free-email over-promotion, and a vendor-pitch
-  blind spot: **70.8% → 75% → 87.5% → 95.8%**, each step a prompt/config
-  change with receipts. The current accuracy is public on the funnel page.
-- **Structured generation you can audit.** Every lead carries the model's
-  score, reasoning, model id, and cost, plus an append-only audit timeline
-  (system/agent/human actors) that renders publicly on the status page.
-- **Human-in-the-loop as policy.** The 0.4–0.79 band parks leads for a human;
-  approve → routed, reject → disqualified. The in-app queue proves the gate;
-  the Slack interactive version is fully specified in
-  [`docs/slack-wiring.md`](docs/slack-wiring.md) and only awaits a sandbox.
+1. Submit a form with a business email and a real sentence about inbound volume,
+   or use a sample ICP preset.
+2. Watch qualification on the status page: enrichment → fit score and reasoning
+   → routing decision. Strong fits auto-route. Mid-band scores (0.4-0.79) park
+   for human review. Low scores disqualify.
+3. Book against the routed AE when the lead auto-routes.
+4. Open the funnel for stage conversion and the latest eval accuracy.
 
-## Deploy (AWS, Terraform)
+## Evals as a gate
 
-`infra/` provisions the whole thing from clean state: ECR, ECS Fargate (app +
-Ollama sidecar), RDS Postgres, ALB + ACM, SSM secrets, optional Cloudflare
-DNS.
+24 golden cases cover obvious fit, mid-band, poor fit, and adversarial inputs
+(free email, student, vendor pitch, gibberish). Runs are keyed by model and a
+prompt hash (ICP text, system prompt, rules, firmographics, case set), so an
+accuracy move is attributable. The suite drove a measured climb on local
+`qwen3:4b` during development; re-run live eval after prompt changes.
+
+Source of truth:
+
+- Cases: `apps/qualify/server/seed/eval-cases.ts`
+- Pure comparison: `apps/qualify/server/lib/eval-core.ts`
+- Live runner: `apps/qualify/server/lib/eval-runner.ts`
+- CLI: `apps/qualify/scripts/run-eval-cli.ts` (`pnpm eval`)
+
+## Deploy (AWS, optional)
+
+`infra/` provisions ECR, ECS Fargate (app + Ollama sidecar), RDS Postgres,
+ALB + ACM, and SSM secrets. Interview mode applies the stack, seeds, smokes,
+captures receipts, and tears down so you are not paying for idle ALB/RDS/Fargate
+between demos.
 
 ```bash
-infra/interview.sh up            # apply (~15 min) → build+push → healthz → seed → smoke → receipt
-infra/interview.sh status        # outputs + ECS + healthz + session age; detects ghost state
-infra/interview.sh down          # destroy everything again
-infra/interview.sh purge-ghost   # empty local tfstate when AWS is already empty
-infra/interview.sh check-expiry  # cron: non-zero if session older than warn/critical hours
-infra/interview.sh residual      # read-only inventory of leftover inbound-lite AWS
+infra/interview.sh up
+infra/interview.sh status
+infra/interview.sh down
 ```
 
-Full runbook (DNS automation via 1Password, timings, receipts):
-[`docs/interview-mode.md`](docs/interview-mode.md).
+Full runbook: [`docs/interview-mode.md`](docs/interview-mode.md).
 
-Each step can also be run by hand (`terraform apply`, `infra/push-images.sh`,
-`aws ecs update-service --force-new-deployment`, a `run-task` seed, then
-`./scripts/smoke.sh <base-url>`) — the script sequences them and reads
-runtime identifiers from `terraform output`, since ALB/subnet/SG names change
-on every re-apply. With a zone-capable Cloudflare token in 1Password, `up`
-automates DNS + HTTPS; otherwise it prints the records to add by hand (see
-the runbook).
-
-The stack applies clean from scratch and is destroyed again between proof
-runs rather than left running — see the cost case study below for why, and
-[`docs/interview-mode.md`](docs/interview-mode.md) for the activate → verify
-→ capture receipts → destroy runbook.
-
-### Full vs. on-demand: a cost case study
-
-The original estimate here was ~$55/month (Fargate 2 vCPU/8 GB,
-db.t4g.micro, ALB). A rate-card reconciliation later found that number
-missed real Fargate vCPU/memory pricing, RDS storage/IO, the ALB hourly
-charge, and public IPv4 — true always-on cost is closer to **$122–125/month**.
-Not a rounding error; it changes the tradeoff.
-
-An idle ECS/RDS/ALB stack doesn't prove more by sitting there between
-visits than a stack that applies cleanly, passes its planted-lead smoke
-test, and gets torn down on a dated receipt trail. So the full stack now
-runs as **interview mode**: activate on demand, verify, capture receipts
-(Terraform apply/destroy, image digest, health + smoke results), destroy.
-Local dev (`pnpm dev`, offline Ollama scoring) stays live at all times for
-anyone who wants to run it themselves — `terraform destroy` retires the
-managed stack, not the project.
-
-A separate 2026-07-18 **inbound-lite** experiment (stopped EC2 + EIP + wake
-Lambda, etc.) is still in the AWS account and is **not** managed by
-`infra/interview.sh`. Inventory + teardown notes:
-[`infra/RESIDUAL-AWS.md`](infra/RESIDUAL-AWS.md).
+A public HTTPS demo is not always on. When a session is active it is served from
+the ALB path configured in that runbook. Prefer local `pnpm dev` for day-to-day
+work.
 
 ## Environment
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL_BASE` | SSM (Terraform) | `postgres://user:pass@host:5432`; the runner derives one DB per app (`inbound_<app>`) |
-| `BETTER_AUTH_SECRET`, `A2A_SECRET` | SSM (Terraform) | Auth signing + cross-app JWT secret |
-| `ANALYTICS_PUBLIC_KEY` | SSM (Terraform) | First-party track write key (seed inserts the same value) |
-| `QUALIFY_LLM_PROVIDER` / `QUALIFY_LLM_MODEL` | task env | `ollama`/`qwen3:4b` by default; `openai` flips to hosted |
-| `OPENAI_API_KEY` | SSM (Terraform, optional) | Only needed for hosted scoring |
-| `AGENT_USER_EMAIL` | task env | First-boot auto-account owner email |
-| `PUBLIC_URL` / `APP_URL` / `BETTER_AUTH_URL` | task env | Public origin incl. the `/inbound` prefix |
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres URL, or leave blank for per-app SQLite under `apps/<app>/data/` |
+| `BETTER_AUTH_SECRET` | Auth signing secret |
+| `A2A_SECRET` | Cross-app JWT secret |
+| `QUALIFY_LLM_PROVIDER` / `QUALIFY_LLM_MODEL` | `ollama`/`qwen3:4b` by default; `openai` for hosted |
+| `OPENAI_API_KEY` | Only for hosted scoring |
+| `APP_URL` / `BETTER_AUTH_URL` | Public origin for the workspace |
 
-Local dev uses per-app `.env` files instead (gitignored) — see
-`apps/*/. env.example`; dotenv does **not** override real env vars, so stale
-shell keys shadow `.env` (unset them).
+Copy `.env.example` and the per-app examples. Dotenv does not override real env
+vars, so unset stale shell keys if values look wrong.
 
-## Honesty notes
+## Notes
 
-- **All data is synthetic.** Companies are seeded fixtures; AEs are
-  `@inbound-demo.test`; the "enrichment provider" is a deterministic local
-  firmographics table standing in for the production Brave/Trafilatura/Gemini
-  pipeline (interface-identical, swap-in ready). Nothing you submit is shared
-  anywhere.
-- Scores come from a 4B-parameter local model on CPU — expect ~1–2 minutes
-  per qualification in the cloud demo. That's a deliberate trade: the demo is
-  self-contained, costs $0/score, and proves the loop runs offline.
-- The Slack approval leg is specified but not enabled (needs a human to
-  create the sandbox workspace); the in-app queue proves the same gate.
+- All data is synthetic. Companies are seeded fixtures; AEs use
+  `@inbound-demo.test` addresses. Enrichment is a deterministic firmographics
+  table that stands in for a production search + crawl + LLM path.
+- Local scoring on a 4B model is slow on CPU (about 1-2 minutes per lead in the
+  cloud layout). That is intentional so the demo runs offline at $0 per score.
+- Package path `@inbound/shared` is unchanged for import stability. Brand and
+  root package name are Winnow; a `@winnow/*` rename is a follow-up.
 
 ## Links
 
-- Demo (when active): <https://demos.dallascrilley.com/inbound> — see
-  [Full vs. on-demand](#full-vs-on-demand-a-cost-case-study) and
-  [`docs/interview-mode.md`](docs/interview-mode.md)
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Composition receipts: [`docs/receipts.md`](docs/receipts.md)
-- Slack wiring spec: [`docs/slack-wiring.md`](docs/slack-wiring.md)
-- Dallas: [dallascrilley.com](https://dallascrilley.com) · CV stories:
-  lead-to-cash operations, EnrichCRM (enrichment pipeline this demo
-  re-implements with synthetic data)
+- Slack wiring: [`docs/slack-wiring.md`](docs/slack-wiring.md)
+- Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security: [`SECURITY.md`](SECURITY.md)
+- Site: [dallascrilley.com](https://dallascrilley.com)
+
+## License
+
+MIT © Dallas Crilley. See [LICENSE](LICENSE).

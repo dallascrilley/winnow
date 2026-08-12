@@ -1,4 +1,4 @@
-# Composition Receipts — Inbound
+# Composition Receipts — Winnow
 
 Every command, scaffold, and hand-written change, captured from day one. This
 file is the evidence for the "composed from verified assets in hours, not

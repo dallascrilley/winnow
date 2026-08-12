@@ -19,27 +19,25 @@ die() { printf 'ERROR %s\n' "$*" >&2; exit 1; }
 [ -f "$WRAPPER" ] || die "missing $WRAPPER"
 chmod +x "$WRAPPER" "$SCRIPT_DIR/interview.sh"
 
-# Rewrite absolute paths in the installed plist to this machine/user/repo.
+# Rewrite placeholders in the installed plist to this machine/user/repo.
 mkdir -p "$DEST_DIR" "$LOG_DIR"
 python3 - "$SRC_PLIST" "$DEST_PLIST" "$WRAPPER" "$REPO_ROOT" "$HOME" "$LOG_DIR" <<'PY'
 import sys
 from pathlib import Path
 src, dest, wrapper, repo, home, log_dir = (Path(a).resolve() for a in sys.argv[1:7])
 text = src.read_text()
-# Template is authored for dallascrilley paths; rewrite to current install.
-# Longer keys first so nested paths replace cleanly.
 replacements = {
-    "/Users/dallascrilley/Code/inbound/infra/check-expiry-notify.sh": str(wrapper),
-    "/Users/dallascrilley/.hub/logs/inbound-interview-expiry.launchd.log": str(log_dir / "inbound-interview-expiry.launchd.log"),
-    "/Users/dallascrilley/Code/inbound": str(repo),
-    "/Users/dallascrilley": str(home),
+    "__REPO_ROOT__/infra/check-expiry-notify.sh": str(wrapper),
+    "__LOG_DIR__/inbound-interview-expiry.launchd.log": str(log_dir / "inbound-interview-expiry.launchd.log"),
+    "__REPO_ROOT__": str(repo),
+    "__LOG_DIR__": str(log_dir),
+    "__HOME__": str(home),
 }
 for old in sorted(replacements, key=len, reverse=True):
     text = text.replace(old, replacements[old])
 dest.write_text(text)
-# Fail loud if any unsubstituted template user path remains that isn't ours.
-if "/Users/dallascrilley/" in text and str(home) != "/Users/dallascrilley":
-    raise SystemExit("unsubstituted /Users/dallascrilley path left in installed plist")
+if "__REPO_ROOT__" in text or "__HOME__" in text or "__LOG_DIR__" in text:
+    raise SystemExit("unsubstituted placeholder left in installed plist")
 if ".." in text:
     raise SystemExit(f"non-canonical path remained in plist:\n{text}")
 print(f"wrote {dest}")

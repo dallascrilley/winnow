@@ -12,7 +12,7 @@
  *
  * Runs as a dependency-free tsx script (vitest is not wired into this template).
  * Command:
- *   cd /Users/steve/Projects/builder/agent-native/framework && \
+ *   cd <agent-native-framework-checkout> && \
  *     node_modules/.bin/tsx templates/forms/shared/types.public-settings.spec.ts
  */
 

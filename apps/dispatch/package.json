@@ -1,6 +1,6 @@
 {
   "name": "dispatch",
-  "displayName": "Agent-Native Dispatch",
+  "displayName": "Winnow Dispatch",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +13,8 @@
     "script": "agent-native script"
   },
   "dependencies": {
-    "@agent-native/core": "latest",
-    "@agent-native/dispatch": "latest",
+    "@agent-native/core": "0.114.16",
+    "@agent-native/dispatch": "0.15.8",
     "@fontsource-variable/inter": "^5.2.8",
     "@libsql/client": "^0.15.8",
     "@radix-ui/react-tooltip": "^1.2.7",
@@ -48,5 +48,5 @@
     "@assistant-ui/store": ">=0.2.9 <0.2.14",
     "@assistant-ui/tap": "^0.5.14"
   },
-  "description": "Workspace app for Dispatch."
+  "description": "Approval delivery surface (Slack leg specified, in-app queue ships first)."
 }

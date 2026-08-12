@@ -1,5 +1,5 @@
 {
-  "name": "inbound",
+  "name": "winnow",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -9,10 +9,12 @@
     "skills:update": "agent-native skills update scaffold --project",
     "upgrade:agent-native": "agent-native upgrade",
     "fmt:check": "oxfmt --check .",
-    "lint": "pnpm fmt:check"
+    "lint": "pnpm fmt:check",
+    "eval": "pnpm --filter qualify eval",
+    "test": "pnpm --filter qualify --filter scheduler --filter forms -r test"
   },
   "dependencies": {
-    "@agent-native/core": "latest",
+    "@agent-native/core": "0.114.16",
     "@openrouter/ai-sdk-provider": "^3.0.0",
     "ai": "^7.0.34",
     "postgres": "^3.4.9"
@@ -26,5 +28,6 @@
   "packageManager": "pnpm@10.14.0",
   "agent-native": {
     "workspaceCore": "@inbound/shared"
-  }
+  },
+  "description": "Winnow - scores and routes inbound sales leads, gated by a 24-case model eval suite"
 }
