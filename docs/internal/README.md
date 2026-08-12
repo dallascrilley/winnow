@@ -6,6 +6,9 @@ linked from the public README.
 | Path | Contents |
 | --- | --- |
 | `brainstorms/`, `ideation/`, `plans/`, `solutions/` | Design history and prior art notes |
-| `agent-residue/` | Former `AGENTS.md`, `.agents` skill trees, and Claude symlinks moved out of the public tree for release hygiene |
+
+Former `AGENTS.md` files, `.agents` skill trees, and Claude symlinks were
+removed from the public tree entirely; recover them from git history if a
+maintainer ever needs them.
 
 Do not re-link these from user-facing docs without a deliberate decision.
