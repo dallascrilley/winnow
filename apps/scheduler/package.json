@@ -1,8 +1,8 @@
 {
   "name": "scheduler",
-  "displayName": "Scheduler",
+  "displayName": "Winnow Scheduler",
   "private": true,
-  "description": "Workspace app for Scheduler.",
+  "description": "Round-robin routing and booking against AE-owned availability.",
   "type": "module",
   "scripts": {
     "dev": "agent-native dev --open",
@@ -15,9 +15,9 @@
     "seed": "tsx server/seed/run.ts"
   },
   "dependencies": {
-    "@agent-native/core": "latest",
+    "@agent-native/core": "0.114.16",
     "@agent-native/scheduling": "0.1.25",
-    "@agent-native/toolkit": "latest",
+    "@agent-native/toolkit": "0.8.2",
     "@fontsource-variable/inter": "^5.2.8",
     "@inbound/shared": "workspace:*",
     "@libsql/client": "^0.15.8",

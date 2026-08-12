@@ -135,7 +135,7 @@ describe("trustedSourceRelativePath", () => {
   it("rejects client-controlled absolute, traversal, and non-app paths", () => {
     expect(
       trustedSourceRelativePath(
-        "/Users/steve/Projects/builder/agent-native/framework/AGENTS.md",
+        "<agent-native-framework-checkout>/AGENTS.md",
       ),
     ).toBeNull();
     expect(trustedSourceRelativePath("../server/db/schema.ts")).toBeNull();

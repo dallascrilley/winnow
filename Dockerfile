@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Inbound lead-router demo — single-container workspace (all five apps + proxy).
+# Winnow lead-router demo — single-container workspace (all five apps + proxy).
 # The ollama scorer runs as a sidecar container in the same ECS task (see infra/).
 
 FROM node:22-bookworm

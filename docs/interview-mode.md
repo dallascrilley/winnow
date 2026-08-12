@@ -1,6 +1,6 @@
 # Interview Mode
 
-Interview mode is the on-demand way to run the Inbound demo's full AWS stack
+Interview mode is the on-demand way to run the Winnow demo's full AWS stack
 (ECS Fargate app + ollama sidecar, RDS PG16, ALB, ECR, SSM) for a single
 session — a live interview, a demo call, a portfolio review — without paying
 for it to sit idle the rest of the time. One command brings the stack up,
