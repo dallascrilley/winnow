@@ -1,1 +1,1 @@
-export const WORKSPACE_SHARED_NAME = "@inbound/shared";
+export const WORKSPACE_SHARED_NAME = "@winnow/shared";

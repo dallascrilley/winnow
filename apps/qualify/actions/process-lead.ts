@@ -1,5 +1,5 @@
 import { defineAction } from "@agent-native/core/action";
-import { siblingActionFetch } from "@inbound/shared/server";
+import { siblingActionFetch } from "@winnow/shared/server";
 import { z } from "zod";
 
 import {

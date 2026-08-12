@@ -6,7 +6,7 @@ import {
   getAvailableSlots,
   getEventTypeById,
 } from "@agent-native/scheduling/server";
-import { siblingActionFetch } from "@inbound/shared/server";
+import { siblingActionFetch } from "@winnow/shared/server";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";

@@ -19,7 +19,7 @@
     "@agent-native/scheduling": "0.1.25",
     "@agent-native/toolkit": "0.8.2",
     "@fontsource-variable/inter": "^5.2.8",
-    "@inbound/shared": "workspace:*",
+    "@winnow/shared": "workspace:*",
     "@libsql/client": "^0.15.8",
     "@react-router/dev": "^8.1.0",
     "@react-router/fs-routes": "^8.1.0",

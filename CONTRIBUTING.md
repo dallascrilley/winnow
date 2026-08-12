@@ -3,6 +3,8 @@
 Thanks for taking a look. This monorepo is a portfolio demo of an inbound lead
 pipeline with a 24-case model eval suite as a CI gate.
 
+It is composed on `@agent-native/core` workspace templates. See [docs/receipts.md](docs/receipts.md) for scaffold vs hand-written evidence and the root README Provenance section.
+
 ## Setup
 
 ```bash
@@ -41,7 +43,7 @@ Keep changes focused. Stage only the paths you edited.
 
 ## Package names
 
-Workspace package path is still `@inbound/shared`. A rename to `@winnow/*` is
+Workspace package is `@winnow/shared` (`packages/shared`).
 deferred until it can be done without breaking A2A imports. User-facing brand
 is Winnow.
 

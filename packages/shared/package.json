@@ -1,5 +1,5 @@
 {
-  "name": "@inbound/shared",
+  "name": "@winnow/shared",
   "version": "0.0.0",
   "private": true,
   "files": [
@@ -36,5 +36,5 @@
   "dependencies": {
     "h3": "catalog:"
   },
-  "description": "Shared A2A helpers and workspace types for the Winnow monorepo (package name remains @inbound/shared until a follow-up rename)."
+  "description": "Shared A2A helpers and workspace types for the Winnow monorepo"
 }
