@@ -6,12 +6,14 @@ visible reasoning trail, park borderline scores for a human, and book the rest
 against real AE availability. A 24-case model eval suite gates every accuracy
 change in CI.
 
-This monorepo is a portfolio demo. All company and AE data is synthetic. Nothing
-you submit in a local run is shared.
+Winnow is a working system published as a portfolio demonstration: the ICP
+scoring engine, band policy, human-review loop, signed A2A routing, and the
+24-case eval suite are real, hand-written, and CI-gated. All company and AE
+data is synthetic. Nothing you submit in a local run is shared.
 
 ## Provenance
 
-Winnow is a **portfolio demo composed on** [`@agent-native/core`](https://www.npmjs.com/package/@agent-native/core) (BuilderIO agent-native workspace templates). The initial commit is scaffolded multi-app workspace; product logic for ICP scoring, band policy, human review, signed A2A routing, the 24-case eval suite, and interview-mode AWS deploy is hand-written on top of that base.
+Winnow is **composed on** [`@agent-native/core`](https://www.npmjs.com/package/@agent-native/core) (BuilderIO agent-native workspace templates). The initial commit is scaffolded multi-app workspace; product logic for ICP scoring, band policy, human review, signed A2A routing, the 24-case eval suite, and interview-mode AWS deploy is hand-written on top of that base.
 
 Evidence:
 
